@@ -122,24 +122,27 @@ input[type="submit"]:hover, .quiz-button:hover, .main-button:hover {
     transform: scale(1.05);
 }
 
-/* 📌 Поля ввода в пропусках */
 .fill-input {
-    font-size: 18px;
+    width: auto;
+    min-width: 2ch;
+    max-width: 20ch;
+    height: 30px;
     text-align: center;
-    width: 35px;
-    border: 2px solid #ff69b4;
-    border-radius: 4px;
-    padding: 5px;
-    transition: background 0.3s, transform 0.2s;
-    color: black !important;
-    background-color: white !important;
+    border: 1px solid lightpink;
+    margin: 5px;
+    font-size: 16px;
+    box-sizing: border-box;
+    transition: width 0.2s ease-in-out;
 }
 
+
+
 .fill-input:focus {
-    transform: scale(1.1);
-    background-color: white !important;
+    transform: scale(1.1);  /* Light zoom on focus */
+    background-color: #f0f0f0;
     color: black !important;
 }
+
 
 /* ✅ Верные ответы */
 .correct {
