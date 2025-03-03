@@ -16,41 +16,69 @@ HTML_TEMPLATE = """
     <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css') }}">
 
     <script>
-        document.addEventListener("DOMContentLoaded", function() {
-            function toggleHiddenPercentage() {
-                document.getElementById("hidden_percentage_container").style.display = 
-                    document.querySelector('input[name="mode"]:checked').value === "fill" ? "inline-block" : "none";
-            }
+document.addEventListener("DOMContentLoaded", function() {
+    function toggleHiddenPercentage() {
+        document.getElementById("hidden_percentage_container").style.display = 
+            document.querySelector('input[name="mode"]:checked').value === "fill" ? "inline-block" : "none";
+    }
 
-            document.querySelectorAll('input[name="mode"]').forEach(mode => {
-                mode.addEventListener("change", toggleHiddenPercentage);
-            });
+    function updateBodyClass() {
+        document.body.classList.toggle("fill-mode", document.querySelector('input[name="mode"]:checked').value === "fill");
+    }
 
-            toggleHiddenPercentage();  // Запуск при загрузке страницы
-
-            let inputs = document.querySelectorAll(".fill-input");
-            inputs.forEach((input, index) => {
-                input.addEventListener("input", function() {
-                    let correctValue = this.dataset.correct;
-                    if (this.value.trim().toLowerCase() === correctValue.trim().toLowerCase()) {
-                        this.classList.add("correct"); 
-                        this.value = correctValue; 
-                        this.style.color = 'black'; 
-                        this.style.backgroundColor = 'lightgreen';
-                        this.classList.remove("incorrect");
-                        
-                        let nextInput = inputs[index + 1];
-                        if (nextInput) {
-                            nextInput.focus();
-                        }
-                    } else {
-                        this.classList.add("incorrect"); 
-                        this.style.backgroundColor = 'lightcoral';
-                        this.classList.remove("correct");
-                    }
-                });
-            });
+    document.querySelectorAll('input[name="mode"]').forEach(mode => {
+        mode.addEventListener("change", function() {
+            toggleHiddenPercentage();
+            updateBodyClass();
         });
+    });
+
+    toggleHiddenPercentage();  
+    updateBodyClass();  // Запуск при загрузке страницы
+
+    let inputs = document.querySelectorAll(".fill-input");
+    inputs.forEach((input, index) => {
+        input.addEventListener("input", function() {
+            let correctValue = this.dataset.correct.trim().toLowerCase();
+            let enteredValue = this.value.trim().toLowerCase();
+
+            if (enteredValue === correctValue) {
+                this.classList.add("correct");
+                this.style.color = 'black'; 
+                this.style.backgroundColor = 'lightgreen';
+                this.classList.remove("incorrect");
+
+                this.value = correctValue;
+                this.setAttribute("readonly", "true");  
+
+                let nextInput = inputs[index + 1];
+                if (nextInput) {
+                    nextInput.focus();
+                }
+            } else {
+                this.classList.add("incorrect");
+                this.style.backgroundColor = 'lightcoral';
+                this.classList.remove("correct");
+            }
+        });
+
+        input.addEventListener("keydown", function(event) {
+            if (event.key.length === 1 && this.value.length >= 1) {
+                event.preventDefault();
+                this.value = event.key;  
+                this.setSelectionRange(1, 1);
+            }
+        });
+
+        input.addEventListener("focus", function() {
+            if (!this.classList.contains("correct")) {
+                this.value = "";
+            }
+        });
+    });
+});
+
+
     </script>
 </head>
 <body>
@@ -106,7 +134,7 @@ def remove_random_letters(text, removal_prob=0.2):
     for word in words:
         if re.match(r'\w+', word):  # Если это слово, а не пунктуация
             num_to_hide = max(1, int(len(word) * removal_prob))  # Скрываем минимум 1 букву
-            indices = random.sample(range(len(word)), num_to_hide) if len(word) > 1 else [0]  # Теперь скрываются и 2-буквенные слова
+            indices = random.sample(range(len(word)), num_to_hide) if len(word) > 1 else [0]  
 
             modified_word = list(word)
             for i in indices:
@@ -114,9 +142,10 @@ def remove_random_letters(text, removal_prob=0.2):
 
             output_words.append(("".join(modified_word), word))  # Сохраняем скрытый вариант + оригинал
         else:
-            output_words.append((word, word))  # Если пунктуация, не скрываем
+            output_words.append((word, word))  
 
     return output_words
+
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
