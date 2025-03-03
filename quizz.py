@@ -75,7 +75,6 @@ QUIZZ_TEMPLATE = """
         <select name="mode" id="mode">
             <option value="multiple_choice" {% if mode == 'multiple_choice' %}selected{% endif %}>Multiple Choice</option>
             <option value="fill_blanks" {% if mode == 'fill_blanks' %}selected{% endif %}>Fill in the Blanks</option>
-            <option value="true_false" {% if mode == 'true_false' %}selected{% endif %}>True or False</option>
         </select><br>
 
         <label for="missing_words">Number of missing words:</label>
@@ -115,6 +114,7 @@ QUIZZ_TEMPLATE = """
 </body>
 </html>
 """
+
 
 
 def generate_quiz(text, mode, missing_words_count, chosen_words=None):
