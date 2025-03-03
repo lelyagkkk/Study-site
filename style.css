@@ -122,24 +122,51 @@ input[type="submit"]:hover, .quiz-button:hover, .main-button:hover {
     transform: scale(1.05);
 }
 
-/* 📌 Поля ввода в пропусках */
+/* Обычный стиль инпутов */
 .fill-input {
-    font-size: 18px;
+    width: 4ch;  /* Чуть шире, чтобы буквы точно влезли */
+    min-width: 4ch;
+    max-width: 4.5ch;
+    height: 35px;
     text-align: center;
-    width: 35px;
-    border: 2px solid #ff69b4;
-    border-radius: 4px;
-    padding: 5px;
-    transition: background 0.3s, transform 0.2s;
-    color: black !important;
-    background-color: white !important;
+    border: 2px solid lightpink;
+    font-size: 18px; /* Чуть больше для читаемости */
+    font-weight: normal;
+    box-sizing: border-box;
+    padding: 4px;
+    line-height: normal;
 }
 
+/* Увеличенная ширина ТОЛЬКО в режиме "Fill in the Blanks" */
+body.fill-mode .fill-input {
+    width: 4.5ch;  /* Делаем инпут шире */
+    min-width: 4.5ch;
+    max-width: 5ch;
+    font-size: 18px; /* Оптимальный размер */
+}
+
+/* Стили ТОЛЬКО для Fill in the Blanks в quizz.py */
+body.quiz-mode .fill-input {
+    width: auto; /* Инпуты теперь подстраиваются под слово */
+    min-width: 3ch; /* Минимальная ширина */
+    max-width: 12ch; /* Чтобы не были слишком широкими */
+    height: 35px;
+    text-align: center;
+    border: 2px solid lightpink;
+    font-size: 20px; /* Достаточно крупный, но не огромный */
+    font-weight: bold; /* Делаем текст жирным */
+    box-sizing: border-box;
+    padding: 4px;
+    line-height: normal;
+}
+
+
 .fill-input:focus {
-    transform: scale(1.1);
-    background-color: white !important;
+    transform: scale(1.1);  /* Light zoom on focus */
+    background-color: #f0f0f0;
     color: black !important;
 }
+
 
 /* ✅ Верные ответы */
 .correct {
