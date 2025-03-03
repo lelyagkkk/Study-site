@@ -10,7 +10,61 @@ QUIZZ_TEMPLATE = """
     <title>Quizz</title>
     <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css') }}">
 </head>
-<body>
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        let choices = document.querySelectorAll(".choice");
+        
+        choices.forEach(choice => {
+            choice.addEventListener("click", function() {
+                let correctWord = this.dataset.correct.trim().toLowerCase();
+                let selectedWord = this.textContent.trim().toLowerCase();
+
+                if (selectedWord === correctWord) {
+                    this.style.backgroundColor = "lightgreen"; // Подсветка правильного ответа
+                } else {
+                    this.style.backgroundColor = "lightcoral"; // Подсветка неверного
+                }
+            });
+        });
+
+        let inputs = document.querySelectorAll(".fill-input");
+        inputs.forEach((input, index) => {
+            input.addEventListener("input", function() {
+                let correctValue = this.dataset.correct.trim().toLowerCase();
+                let enteredValue = this.value.trim().toLowerCase();
+
+                if (enteredValue === correctValue) {
+                    this.classList.add("correct");
+                    this.style.color = 'black';
+                    this.style.backgroundColor = 'lightgreen';
+                    this.classList.remove("incorrect");
+
+                    let nextInput = inputs[index + 1];
+                    if (nextInput) {
+                        nextInput.focus();
+                    }
+                } else {
+                    this.classList.add("incorrect");
+                    this.style.backgroundColor = 'lightcoral';
+                    this.classList.remove("correct");
+                }
+            });
+
+            input.addEventListener("keydown", function(event) {
+                if (event.key.length === 1 && this.value.length >= this.maxLength) {
+                    event.preventDefault();
+                }
+            });
+        });
+
+        document.getElementById("missing_words").addEventListener("change", function() {
+            document.getElementById("chosen_words_input").style.display = (this.value === "chosen_words") ? "inline-block" : "none";
+        });
+    });
+</script>
+
+
+<body class="quiz-mode"> <!-- Добавили class="quiz-mode" -->
     <a href="{{ url_for('index') }}" class="main-button">Main</a>
     
     <h2>Quizz Creator</h2>
@@ -25,19 +79,18 @@ QUIZZ_TEMPLATE = """
         </select><br>
 
         <label for="missing_words">Number of missing words:</label>
-<select name="missing_words" id="missing_words">
-    <option value="1" {% if missing_words == '1' %}selected{% endif %}>1</option>
-    <option value="2" {% if missing_words == '2' %}selected{% endif %}>2</option>
-    <option value="3" {% if missing_words == '3' %}selected{% endif %}>3</option>
-    <option value="4" {% if missing_words == '4' %}selected{% endif %}>4</option>
-    {% if mode in ['fill_blanks', 'multiple_choice'] %}
-        <option value="whole_sentence" {% if missing_words == 'whole_sentence' %}selected{% endif %}>The whole sentence</option>
-    {% endif %}
-    <option value="chosen_words" {% if missing_words == 'chosen_words' %}selected{% endif %}>Chosen words</option>
-</select><br>
+        <select name="missing_words" id="missing_words">
+            <option value="1" {% if missing_words == '1' %}selected{% endif %}>1</option>
+            <option value="2" {% if missing_words == '2' %}selected{% endif %}>2</option>
+            <option value="3" {% if missing_words == '3' %}selected{% endif %}>3</option>
+            <option value="4" {% if missing_words == '4' %}selected{% endif %}>4</option>
+            {% if mode in ['fill_blanks', 'multiple_choice'] %}
+                <option value="whole_sentence" {% if missing_words == 'whole_sentence' %}selected{% endif %}>The whole sentence</option>
+            {% endif %}
+            <option value="chosen_words" {% if missing_words == 'chosen_words' %}selected{% endif %}>Chosen words</option>
+        </select><br>
 
-        <!-- Поле для ввода списка слов (по умолчанию скрыто) -->
-<input type="text" name="chosen_words" id="chosen_words_input" placeholder="Enter words separated by commas" style="display: none;">
+        <input type="text" name="chosen_words" id="chosen_words_input" placeholder="Enter words separated by commas" style="display: none;">
         <input type="submit" value="Create Quiz">
     </form>
 
@@ -59,49 +112,6 @@ QUIZZ_TEMPLATE = """
             </div>
         {% endfor %}
     </div>
-
-    <script>
-        document.addEventListener("DOMContentLoaded", function() {
-            let choices = document.querySelectorAll(".choice");
-            choices.forEach(choice => {
-                choice.addEventListener("click", function() {
-                    if (this.textContent.trim().toLowerCase() === this.dataset.correct.trim().toLowerCase()) {
-                        this.style.backgroundColor = "lightgreen";
-                    } else {
-                        this.style.backgroundColor = "lightcoral";
-                    }
-                });
-            });
-
-            let inputs = document.querySelectorAll(".fill-input");
-            inputs.forEach((input, index) => {
-                input.addEventListener("input", function() {
-                    let correctValue = this.dataset.correct.trim().toLowerCase();
-                    if (this.value.trim().toLowerCase() === correctValue) {
-                        this.classList.add("correct");
-                        this.value = correctValue;
-                        this.style.color = 'black';
-                        this.style.backgroundColor = 'lightgreen';
-                        this.classList.remove("incorrect");
-
-                        let nextInput = inputs[index + 1];
-                        if (nextInput) {
-                            nextInput.focus();
-                        }
-                    } else {
-                        this.classList.add("incorrect");
-                        this.style.backgroundColor = 'lightcoral';
-                        this.classList.remove("correct");
-                    }
-                });
-            });
-
-            // Показываем поле ввода "Chosen words", если выбрано
-            document.getElementById("missing_words").addEventListener("change", function() {
-                document.getElementById("chosen_words_input").style.display = (this.value === "chosen_words") ? "inline-block" : "none";
-            });
-        });
-    </script>
 </body>
 </html>
 """
