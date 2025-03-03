@@ -172,23 +172,28 @@ def generate_quiz(text, mode, missing_words_count, chosen_words=None):
 
             quiz_questions.append((question, options_list))
 
-        # ✅ Fill in the Blanks (учитываем "whole_sentence")
+        # ✅ Fill in the Blanks (учитываем "whole_sentence", исправляем ввод одной буквы, делаем шире инпут)
         elif mode == "fill_blanks":
             if missing_words_count == "whole_sentence":
-                words_to_hide = words[:]  
                 words = [
-                    f'<input type="text" class="fill-input" data-correct="{word}" style="width: {max(len(word), 3)}ch;">'
-                    for word in words_to_hide
+                    f'<input type="text" class="fill-input" data-correct="{word}" '
+                    f'style="width: {max(len(word) * 2.5, 5)}ch; min-width: 4ch; max-width: 35ch;" '
+                    f'maxlength="{len(word)}" size="{max(len(word), 2)}">'  # Увеличена ширина для 1-2 букв
+                    for word in words
                 ]
             else:
                 for i in missing_indices:
-                    words[i] = f'<input type="text" class="fill-input" data-correct="{words[i]}" style="width: {max(len(words[i]), 3)}ch;">'
+                    correct_word = words[i]
+                    words[i] = (
+                        f'<input type="text" class="fill-input" data-correct="{correct_word}" '
+                        f'style="width: {max(len(correct_word) * 2.5, 5)}ch; min-width: 4ch; max-width: 35ch;" '
+                        f'maxlength="{len(correct_word)}" size="{max(len(correct_word), 2)}">'  # Увеличена ширина для 1-2 букв
+                    )
 
             question = " ".join(words).strip()
             quiz_questions.append((question, []))
-
+    
     return quiz_questions
-
 
 
 
