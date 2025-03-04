@@ -2,9 +2,15 @@ import random
 import re
 from flask import Flask, render_template_string, request
 from quizz import quizz_bp  # Импортируем Blueprint
+from pichide import pichide_bp  # Импортируем Blueprint
+from coding import coding_bp
+
 
 app = Flask(__name__)
-app.register_blueprint(quizz_bp)  # Добавляем quizz.py в главное приложение
+
+app.register_blueprint(pichide_bp)  # Регистрируем Blueprint
+app.register_blueprint(quizz_bp)
+app.register_blueprint(coding_bp)
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -123,7 +129,9 @@ document.addEventListener("DOMContentLoaded", function() {
     {% endif %}
     <br><br>
     <a href="{{ url_for('quizz.quizz') }}" class="quiz-button">Quiz Mode</a>
-</body>
+    <a href="{{ url_for('coding.coding') }}" class="coding-button">Coding</a>
+    <a href="/pichide" class="image-hide-button">Image Hide</a>
+
 </html>
 """
 
@@ -171,6 +179,8 @@ def index():
         mode=mode,
         hidden_percentage=hidden_percentage
     )
+
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', debug=True)
