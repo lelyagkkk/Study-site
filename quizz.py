@@ -1,5 +1,6 @@
 from flask import Blueprint, request, render_template_string
 import random
+from pichide import pichide
 
 quizz_bp = Blueprint('quizz', __name__)
 
@@ -66,9 +67,10 @@ QUIZZ_TEMPLATE = """
 
 <body class="quiz-mode"> <!-- Добавили class="quiz-mode" -->
     <a href="{{ url_for('index') }}" class="main-button">Main</a>
-    
-    <h2>Quizz Creator</h2>
-    <form method="post">
+    <a href="{{ url_for('pichide.pichide') }}" class="image-hide-button">Image Hide</a>
+    <a href="{{ url_for('coding.coding') }}" class="large-button coding-button">Coding</a>
+
+        <form method="post">
         <textarea name="input_text">{{ input_text }}</textarea><br>
 
         <label for="mode">Select quiz mode:</label>
