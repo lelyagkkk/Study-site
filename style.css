@@ -204,3 +204,40 @@ body.quiz-mode .fill-input {
 .quiz-button:hover {
     background-color: #e68900;
 }
+
+.image-hide-button {
+    background-color: #6c757d; /* Серый фон, чтобы не привлекала слишком много внимания */
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    font-size: 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.3s, transform 0.2s;
+    text-decoration: none;
+    display: inline-block;
+}
+
+.image-hide-button:hover {
+    background-color: #5a6268;
+    transform: scale(1.1);
+}
+
+.coding-button {
+    background-color: #007BFF; /* Синий цвет для Coding */
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    font-size: 18px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.3s, transform 0.2s;
+    text-decoration: none;
+    display: inline-block;
+}
+
+.coding-button:hover {
+    background-color: #0056b3;
+    transform: scale(1.1);
+}
+
