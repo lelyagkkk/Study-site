@@ -4,13 +4,14 @@ from flask import Flask, render_template_string, request
 from quizz import quizz_bp  # Импортируем Blueprint
 from pichide import pichide_bp  # Импортируем Blueprint
 from coding import coding_bp
-
+from library import library_bp
 
 app = Flask(__name__)
 
 app.register_blueprint(pichide_bp)  # Регистрируем Blueprint
 app.register_blueprint(quizz_bp)
 app.register_blueprint(coding_bp)
+app.register_blueprint(library_bp)
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -131,6 +132,7 @@ document.addEventListener("DOMContentLoaded", function() {
     <a href="{{ url_for('quizz.quizz') }}" class="quiz-button">Quiz Mode</a>
     <a href="{{ url_for('coding.coding') }}" class="coding-button">Coding</a>
     <a href="/pichide" class="image-hide-button">Image Hide</a>
+    <a href="/library/" class="library-button">Library</a>
 
 </html>
 """
@@ -155,32 +157,37 @@ def remove_random_letters(text, removal_prob=0.2):
     return output_words
 
 
-@app.route('/', methods=['GET', 'POST'])
+@app.route('/', methods=['GET','POST'])
 def index():
+    """Main page: Remove Letters / Fill in the Blanks."""
     input_text = ""
     output_words = []
     mode = "remove"
-    hidden_percentage = 20  # Значение по умолчанию
+    hidden_percentage = 20
+
+    # Если GET-параметры (mode, input_text), подставим их
+    if request.method == 'GET':
+        # Если ?input_text=..., ?mode=fill или remove
+        if 'input_text' in request.args:
+            input_text = request.args.get('input_text','')
+        if 'mode' in request.args:
+            mode = request.args.get('mode','remove')
 
     if request.method == 'POST':
-        input_text = request.form.get('input_text', '')
-        mode = request.form.get('mode', 'remove')
-        hidden_percentage = int(request.form.get("hidden_percentage", 20))  # Получаем процент скрытых букв
-
-        if mode == "fill":
-            output_words = remove_random_letters(input_text, hidden_percentage / 100)  # Преобразуем в 0.0-1.0
+        input_text = request.form.get('input_text','')
+        mode = request.form.get('mode','remove')
+        hidden_percentage = int(request.form.get('hidden_percentage','20'))
+        if mode=='fill':
+            output_words = remove_random_letters(input_text, hidden_percentage/100)
         else:
-            output_words = remove_random_letters(input_text)  # Используем дефолтные 20%
+            output_words = remove_random_letters(input_text)
 
-    return render_template_string(
-        HTML_TEMPLATE,
+    return render_template_string(HTML_TEMPLATE,
         input_text=input_text,
         output_words=output_words,
         mode=mode,
         hidden_percentage=hidden_percentage
     )
 
-
-
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', debug=True)
+if __name__=='__main__':
+    app.run(host="0.0.0.0", port=80,debug=True)
