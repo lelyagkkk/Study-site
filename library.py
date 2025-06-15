@@ -1,400 +1,320 @@
 import os
-from flask import Blueprint, render_template_string, request, redirect, url_for, send_from_directory
+import shutil
+import json
+from flask import Blueprint, render_template, request, redirect, url_for, session, jsonify
 from markupsafe import escape
 from werkzeug.utils import secure_filename
 from urllib.parse import quote
-import PyPDF2  # Для PDF извлечения текста
-import shutil
 
-library_bp = Blueprint('library', __name__, url_prefix='/library')
+try:
+    import mammoth
+except ImportError:
+    mammoth = None
 
-LIBRARY_FOLDER = "static/library"
-os.makedirs(LIBRARY_FOLDER, exist_ok=True)
+try:
+    import PyPDF2
+except ImportError:
+    PyPDF2 = None
 
-# HTML шаблон главной страницы библиотеки
-LIBRARY_TEMPLATE = r"""
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>My Library</title>
-    <style>
-      body {
-        margin: 0;
-        font-family: Arial, sans-serif;
-        background: linear-gradient(to bottom, #a8edea, #fed6e3);
-        min-height: 100vh;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        color: #333;
-      }
-      h1 {
-        margin-top: 20px;
-        text-align: center;
-      }
-      .library-container {
-        background: white;
-        border-radius: 15px;
-        padding: 20px;
-        box-shadow: 0px 4px 10px rgba(0,0,0,0.1);
-        width: 90%;
-        max-width: 600px;
-        margin-top: 20px;
-      }
-      .nav-links {
-        display: flex;
-        gap: 10px;
-        margin: 20px;
-      }
-      .nav-links a {
-        text-decoration: none;
-        padding: 14px 20px;
-        border-radius: 12px;
-        font-size: 18px;
-        transition: 0.3s;
-        color: white;
-        background-color: #ff69b4;
-      }
-      .nav-links a:hover {
-        opacity: 0.8;
-      }
-      .folder-list, .file-list {
-        list-style: none;
-        padding-left: 0;
-      }
-      .folder-list li, .file-list li {
-        margin: 5px 0;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-      }
-      .item-link {
-        color: #007bff;
-        text-decoration: none;
-        transition: color 0.2s;
-      }
-      .item-link:hover {
-        color: #0056b3;
-        text-decoration: underline;
-      }
-      .delete-btn {
-        padding: 4px 8px;
-        background: #f44336;
-        color: #fff;
-        border: none;
-        border-radius: 6px;
-        font-size: 14px;
-        cursor: pointer;
-        transition: transform 0.2s;
-      }
-      .delete-btn:hover {
-        transform: scale(1.05);
-      }
-      form {
-        margin: 10px 0;
-      }
-      input[type="text"] {
-        padding: 6px;
-        border: 2px solid #ddd;
-        border-radius: 6px;
-      }
-      .btn {
-        padding: 6px 14px;
-        border-radius: 6px;
-        border: none;
-        background: linear-gradient(135deg, #2196F3, #03A9F4);
-        color: white;
-        cursor: pointer;
-        transition: transform 0.3s, box-shadow 0.3s;
-      }
-      .btn:hover {
-        transform: scale(1.08);
-        box-shadow: 0 0 8px rgba(255,255,255,0.3);
-      }
-      .back-link a {
-        color: #f44336;
-        text-decoration: none;
-        font-weight: bold;
-      }
-      .back-link a:hover {
-        text-decoration: underline;
-      }
-    </style>
-</head>
-<body>
-  <h1>My Library</h1>
+library_bp = Blueprint('library_bp', __name__, url_prefix='/library')
 
-  <div class="nav-links">
-    <a href="{{ url_for('index') }}">Main</a>
-    <a href="{{ url_for('pichide.pichide') }}">Pichide</a>
-    <a href="{{ url_for('coding.coding') }}">Coding</a>
-    <a href="{{ url_for('quizz.quizz') }}">Quizz</a>
-  </div>
+################################################################################
+# Вспомогательные функции
+################################################################################
 
-  <div class="library-container">
-    {% if parent_folder %}
-      <div class="back-link">
-        <a href="{{ url_for('library.browse_library', subpath=parent_folder) }}">← Up to parent folder</a>
-      </div>
-    {% endif %}
+def get_user_library_root():
+    """Возвращает путь к папке пользователя (или _guest)."""
+    if 'user_id' not in session:
+        user = '_guest'
+    else:
+        user = session['user_id']
+    root = os.path.join('static', 'library', user)
+    os.makedirs(root, exist_ok=True)
+    return root
 
-    <h3>Folders in {{ current_folder|default('root') }}</h3>
-    <ul class="folder-list">
-      {% for f in folders %}
-        <li>
-          <a class="item-link" href="{{ url_for('library.browse_library', subpath=(subpath + '/' + f).strip('/')) }}">
-            📁 {{ f }}
-          </a>
-          <form method="post" action="{{ url_for('library.delete_item', subpath=(subpath + '/' + f).strip('/')) }}" style="display:inline;">
-            <button type="submit" class="delete-btn">Delete</button>
-          </form>
-        </li>
-      {% endfor %}
-    </ul>
+def gather_all_folders(base_dir, rel=""):
+    """Сканируем папки рекурсивно (для Move-модалки)."""
+    results = []
+    folder_path = os.path.join(base_dir, rel)
+    if os.path.isdir(folder_path):
+        for entry in os.listdir(folder_path):
+            full = os.path.join(folder_path, entry)
+            if os.path.isdir(full):
+                sub_rel = os.path.join(rel, entry).replace("\\","/")
+                results.append(sub_rel if sub_rel else ".")
+                results.extend(gather_all_folders(base_dir, sub_rel))
+    return results
 
-    <h3>Files in {{ current_folder|default('root') }}</h3>
-    <ul class="file-list">
-      {% for file in files %}
-        <li>
-          <a class="item-link" href="{{ url_for('library.open_file', subpath=subpath, filename=file) }}">
-            📄 {{ file }}
-          </a>
-          <form method="post" action="{{ url_for('library.delete_item', subpath=(subpath + '/' + file).strip('/')) }}" style="display:inline;">
-            <button type="submit" class="delete-btn">Delete</button>
-          </form>
-        </li>
-      {% endfor %}
-    </ul>
+def convert_docx_to_html(filepath):
+    """Используем mammoth для doc/docx -> html."""
+    if not mammoth:
+        return "<p><b>[mammoth not installed!]</b></p>"
+    def inline_img_handler(img):
+        import base64
+        with img.open() as f:
+            bin_data = f.read()
+        encoded = base64.b64encode(bin_data).decode('ascii')
+        return {
+            "src": f"data:{img.content_type};base64,{encoded}",
+            "alt": img.alt_text if img.alt_text else ""
+        }
+    options = {"convert_image": mammoth.images.inline(inline_img_handler)}
+    with open(filepath,"rb") as f:
+        result = mammoth.convert_to_html(f, convert_image=options["convert_image"])
+        return result.value
 
-    <!-- Создать подпапку -->
-    <form method="post" action="{{ url_for('library.create_folder', subpath=subpath) }}">
-      <input type="text" name="folder_name" placeholder="New folder name">
-      <button type="submit" class="btn">Create Folder</button>
-    </form>
+def read_pdf_text(filepath):
+    """Извлекаем текст из PDF (PyPDF2)."""
+    if not PyPDF2:
+        return "(PyPDF2 not installed.)"
+    try:
+        with open(filepath, 'rb') as f:
+            reader = PyPDF2.PdfReader(f)
+            out = ""
+            for page in reader.pages:
+                out += (page.extract_text() or "")
+                out += "\n"
+        return out
+    except Exception as e:
+        return f"Error reading PDF: {e}"
 
-    <!-- Загрузить файл -->
-    <form method="post" action="{{ url_for('library.upload_file', subpath=subpath) }}" enctype="multipart/form-data">
-      <input type="file" name="file">
-      <button type="submit" class="btn">Upload File</button>
-    </form>
-  </div>
-</body>
-</html>
-"""
+def read_text_file(filepath):
+    """Просто читаем текст (если двоичный — заменяем ошибки)."""
+    try:
+        with open(filepath,'r', encoding='utf-8', errors='replace') as f:
+            return f.read()
+    except:
+        return "Unable to read file as text."
 
-#
-# 1) Просмотр папки
-#
+################################################################################
+# Основные маршруты
+################################################################################
+
+@library_bp.route('/all_folders_json')
+def all_folders_json():
+    """Для Move-модалки."""
+    root = get_user_library_root()
+    folds = gather_all_folders(root, "")
+    if "." not in folds:
+        folds.insert(0, ".")
+    return jsonify(folds)
+
+@library_bp.route('/move_item', methods=['POST'])
+def move_item():
+    """Move (или rename путем)."""
+    root = get_user_library_root()
+    old_path = request.form.get("old_path","").strip()
+    new_path = request.form.get("new_path","").strip()
+
+    old_full = os.path.join(root, old_path)
+    if not old_path or not os.path.exists(old_full):
+        return "Invalid old path", 400
+    if not new_path:
+        return "No new path", 400
+
+    new_full = os.path.join(root, new_path)
+    os.makedirs(os.path.dirname(new_full), exist_ok=True)
+    os.rename(old_full, new_full)
+
+    # Родитель
+    parts = old_path.strip("/").split("/")
+    if len(parts)>1:
+        parent = "/".join(parts[:-1])
+    else:
+        parent = ""
+    return redirect(url_for("library_bp.browse_library", subpath=parent))
+
+@library_bp.route('/rename_item', methods=['POST'])
+def rename_item():
+    """Rename (old_path, new_name)."""
+    root = get_user_library_root()
+    old_path = request.form.get("old_path","").strip()
+    new_name = request.form.get("new_name","").strip()
+
+    old_full = os.path.join(root, old_path)
+    if not old_path or not os.path.exists(old_full):
+        return "Invalid old path",400
+    if not new_name:
+        return "No new name",400
+
+    parts = old_path.strip("/").split("/")
+    if len(parts)>1:
+        parent = "/".join(parts[:-1])
+    else:
+        parent = ""
+    new_full = os.path.join(root, parent, new_name)
+    os.rename(old_full, new_full)
+    return redirect(url_for("library_bp.browse_library", subpath=parent))
+
 @library_bp.route('/', defaults={'subpath':''})
 @library_bp.route('/<path:subpath>')
 def browse_library(subpath):
-    """Отображает содержимое папки subpath (список подпапок и файлов)."""
-    target_dir = os.path.join(LIBRARY_FOLDER, subpath)
+    """
+    Отображаем файлы/папки, doc/docx => предпросмотр + Multiple choice / Matching
+    html => открываем по старой схеме (open_file).
+    """
+    root = get_user_library_root()
+    target_dir = os.path.join(root, subpath) if subpath else root
+
     if not os.path.exists(target_dir):
-        return f"Folder {escape(subpath)} does not exist", 404
+        return f"Folder {escape(subpath)} does not exist",404
 
     folders, files = [], []
     for entry in os.listdir(target_dir):
-        fullpath = os.path.join(target_dir, entry)
-        if os.path.isdir(fullpath):
+        full = os.path.join(target_dir, entry)
+        if os.path.isdir(full):
             folders.append(entry)
         else:
             files.append(entry)
 
-    # Родительская папка (кнопка "Up")
-    parent_folder = None
+    # parent
+    parent_folder=None
     if subpath:
         parts = subpath.strip('/').split('/')
-        if len(parts) > 1:
+        if len(parts)>1:
             parent_folder = '/'.join(parts[:-1])
         else:
-            parent_folder = ''  # корень
+            parent_folder = ''
 
-    return render_template_string(
-        LIBRARY_TEMPLATE,
+    return render_template(
+        "library.html",
         subpath=subpath,
-        current_folder=subpath if subpath else 'root',
+        current_folder=subpath if subpath else '.',
         parent_folder=parent_folder,
         folders=sorted(folders),
-        files=sorted(files),
+        files=sorted(files)
     )
 
-#
-# 2) Создать подпапку
-#
 @library_bp.route('/create_folder', defaults={'subpath':''}, methods=['POST'])
 @library_bp.route('/<path:subpath>/create_folder', methods=['POST'])
 def create_folder(subpath):
-    folder_name = request.form.get('folder_name','').strip()
+    """Создаем папку."""
+    root = get_user_library_root()
+    target_dir = os.path.join(root, subpath) if subpath else root
+    folder_name = request.form.get("folder_name","").strip()
     if folder_name:
-        target_dir = os.path.join(LIBRARY_FOLDER, subpath, folder_name)
-        if not os.path.exists(target_dir):
-            os.makedirs(target_dir)
-    return redirect(url_for('library.browse_library', subpath=subpath))
+        new_folder = os.path.join(target_dir, folder_name)
+        os.makedirs(new_folder, exist_ok=True)
+    return redirect(url_for('library_bp.browse_library', subpath=subpath))
 
-#
-# 3) Загрузить файл
-#
 @library_bp.route('/upload_file', defaults={'subpath':''}, methods=['POST'])
 @library_bp.route('/<path:subpath>/upload_file', methods=['POST'])
 def upload_file(subpath):
+    """Загрузка файла."""
+    root = get_user_library_root()
+    target_dir = os.path.join(root, subpath) if subpath else root
     file = request.files.get('file')
     if file:
         filename = secure_filename(file.filename)
         if filename:
-            path = os.path.join(LIBRARY_FOLDER, subpath, filename)
+            path = os.path.join(target_dir, filename)
             file.save(path)
-    return redirect(url_for('library.browse_library', subpath=subpath))
+    return redirect(url_for('library_bp.browse_library', subpath=subpath))
 
-#
-# 4) Удалить файл/папку
-#
 @library_bp.route('/<path:subpath>', methods=['POST'])
 def delete_item(subpath):
-    """Удаляем либо файл, либо папку (рекурсивно)."""
-    target_path = os.path.join(LIBRARY_FOLDER, subpath)
+    """Удаляем файл/папку."""
+    root = get_user_library_root()
+    target_path = os.path.join(root, subpath)
     if os.path.exists(target_path):
         if os.path.isfile(target_path):
             os.remove(target_path)
         else:
             shutil.rmtree(target_path)
-    # Вернёмся к родительской папке
     parts = subpath.strip('/').split('/')
     if len(parts)>1:
-        parent = '/'.join(parts[:-1])
+        parent='/'.join(parts[:-1])
     else:
-        parent = ''
-    return redirect(url_for('library.browse_library', subpath=parent))
+        parent=''
+    return redirect(url_for('library_bp.browse_library', subpath=parent))
 
-#
-# 5) Открыть файл
-#
 @library_bp.route('/<path:subpath>/file/<filename>')
 def open_file(subpath, filename):
-    """
-    Открывает файл и даёт возможность:
-    - Copy all (если текст)
-    - Перейти в разные режимы: 
-      * для изображений => Image Hide
-      * для кода => (trace/memory)
-      * для txt/pdf => main(fill/remove), quiz(mc/fill).
-    """
-    fullpath = os.path.join(LIBRARY_FOLDER, subpath, filename)
+    """Открываем файл inline, html => показываем iframe, (без raw HTML)."""
+    if subpath==".":
+        subpath=""
+    root = get_user_library_root()
+    target_dir = os.path.join(root, subpath)
+    fullpath = os.path.join(target_dir, filename)
     if not os.path.exists(fullpath):
-        return "File not found", 404
+        return "File not found",404
 
     ext = os.path.splitext(filename)[1].lower()
 
-    # Базовая заготовка под кнопку "Copy all" (для текстовых форматов)
-    copy_button = """
-    <button onclick="navigator.clipboard.writeText(document.getElementById('textToCopy').innerText)">
-      Copy all
-    </button>
-    """
-
-    # ============ Изображения ============
-    if ext in ['.png','.jpg','.jpeg','.gif']:
-        file_url = url_for('static', filename=f'library/{subpath}/{filename}')
-        # Единственный доступный режим: Image Hide
+    # 1) Изображения
+    if ext in ['.png','.jpg','.jpeg','.gif','.bmp','.webp']:
+        file_url = url_for('static', filename=f'library/{session.get("user_id","_guest")}/{subpath}/{filename}')
         return f"""
-        <h3>Image: {escape(filename)}</h3>
-        <img src="{file_url}" style="max-width:400px;border:1px solid #ccc">
+        <!DOCTYPE html><html><head><meta charset="UTF-8"><title>{escape(filename)}</title></head>
+        <body style="font-family:Arial; background:#f0f0f0; text-align:center; padding:20px;">
+          <h3>Image: {escape(filename)}</h3>
+          <img src="{file_url}" style="max-width:80%; border:1px solid #ccc;"/>
+          <p>You can right-click or drag to copy the image.</p>
+          <p><a href="{url_for('library_bp.browse_library', subpath=subpath)}">← Back</a></p>
+        </body>
+        </html>"""
 
-        <p><strong>Available Mode:</strong><br>
-          <a href="{url_for('pichide.pichide')}">Image Hide</a>
-        </p>
+    # 2) doc/docx => mammoth => HTML
+    elif ext in ['.doc','.docx']:
+        html_code = convert_docx_to_html(fullpath)
+        return f"""
+        <h3>{escape(filename)}</h3>
+        <div style="white-space:pre-wrap;">{html_code}</div>
+        <p><a href="{url_for('library_bp.browse_library', subpath=subpath)}">← Back</a></p>
         """
 
-    # ============ Код-файлы ============
-    elif ext in ['.py','.cs','.cpp','.ipynb']:  
-        # Прочитаем как текст
-        with open(fullpath, 'r', encoding='utf-8', errors='replace') as f:
-            content = f.read()
-        text_quoted = quote(content)
-
-        # Coding Practice => trace mode, memory mode
-        trace_url = url_for('coding.coding') + "?mode=trace&trace_code_input=" + text_quoted
-        memory_url = url_for('coding.coding') + "?mode=memory&trace_code_input=" + text_quoted
-
-        return f"""
-        <h3>Code File {escape(filename)}</h3>
-        <div id="textToCopy" style="background:#f0f0f0;white-space:pre-wrap;max-height:300px;overflow:auto">
-{escape(content)}
-        </div>
-        {copy_button}
-        <p><strong>Available Modes (Coding):</strong><br>
-          <a href="{trace_url}" target="_blank">Trace Mode</a> |
-          <a href="{memory_url}" target="_blank">Memory Mode</a>
-        </p>
-        """
-
-    # ============ PDF / Тексты (для Main/Quiz) ============
-    elif ext == '.pdf':
-        # Пробуем извлечь текст
-        try:
-            with open(fullpath, 'rb') as f:
-                reader = PyPDF2.PdfReader(f)
-                text = ""
-                for page in reader.pages:
-                    text += page.extract_text() + "\n"
-        except Exception as e:
-            return f"Error reading PDF: {escape(str(e))}"
-
-        # "Main" => fill / remove
-        # "Quiz" => multiple choice / fill
-        text_quoted = quote(text)
-        main_fill = "/?mode=fill&input_text=" + text_quoted
-        main_remove = "/?mode=remove&input_text=" + text_quoted
-
-        quiz_mc = url_for('quizz.quizz') + "?mode=multiple_choice&input_text=" + text_quoted
-        quiz_fill = url_for('quizz.quizz') + "?mode=fill_blanks&input_text=" + text_quoted
-
+    # 3) PDF => iframe + extracted text
+    elif ext=='.pdf':
+        file_url=url_for('static', filename=f'library/{session.get("user_id","_guest")}/{subpath}/{filename}')
+        text_extract=read_pdf_text(fullpath)
         return f"""
         <h3>PDF File: {escape(filename)}</h3>
-        <div id="textToCopy" style="background:#f0f0f0;white-space:pre-wrap;max-height:300px;overflow:auto">
-{escape(text)}
-        </div>
-        {copy_button}
-        <p><strong>Available Modes:</strong><br>
-          <b>Main</b>:
-            <a href="{main_fill}" target="_blank">Fill in the Blanks</a> |
-            <a href="{main_remove}" target="_blank">Remove Letters</a>
-          <br>
-          <b>Quiz</b>:
-            <a href="{quiz_mc}" target="_blank">Multiple Choice</a> |
-            <a href="{quiz_fill}" target="_blank">Fill in the Blanks</a>
-        </p>
+        <iframe src="{file_url}" style="width:80%;height:600px;"></iframe>
+        <hr>
+        <h4>Extracted text:</h4>
+        <div style="white-space:pre-wrap;">{escape(text_extract)}</div>
+        <p><a href="{url_for('library_bp.browse_library', subpath=subpath)}">← Back</a></p>
         """
 
-    elif ext in ['.txt','.md']:
-        # Аналогично: Main => fill/remove, Quiz => multiple/fill
-        with open(fullpath, 'r', encoding='utf-8', errors='replace') as f:
-            text = f.read()
-        text_quoted = quote(text)
-
-        main_fill = "/?mode=fill&input_text=" + text_quoted
-        main_remove = "/?mode=remove&input_text=" + text_quoted
-        quiz_mc = url_for('quizz.quizz') + "?mode=multiple_choice&input_text=" + text_quoted
-        quiz_fill = url_for('quizz.quizz') + "?mode=fill_blanks&input_text=" + text_quoted
-
+    # 4) HTML/HTM => iframe ONLY (убрали raw HTML)
+    elif ext in ['.html','.htm']:
+        file_url=url_for('static', filename=f'library/{session.get("user_id","_guest")}/{subpath}/{filename}')
         return f"""
-        <h3>Text File: {escape(filename)}</h3>
-        <div id="textToCopy" style="background:#f0f0f0;white-space:pre-wrap;max-height:300px;overflow:auto;">
-{escape(text)}
-        </div>
-        {copy_button}
-        <p><strong>Available Modes:</strong><br>
-          <b>Main</b>:
-            <a href="{main_fill}" target="_blank">Fill in the Blanks</a> |
-            <a href="{main_remove}" target="_blank">Remove Letters</a>
-          <br>
-          <b>Quiz</b>:
-            <a href="{quiz_mc}" target="_blank">Multiple Choice</a> |
-            <a href="{quiz_fill}" target="_blank">Fill in the Blanks</a>
-        </p>
+        <h3>HTML File: {escape(filename)}</h3>
+        <iframe src="{file_url}" style="width:80%; height:600px; border:2px solid #666;"></iframe>
+        <p><a href="{url_for('library_bp.browse_library', subpath=subpath)}">← Back</a></p>
         """
 
+    # 5) txt/md/py/cs/cpp/json/yaml
+    elif ext in ['.txt','.md','.py','.cs','.cpp','.json','.yaml']:
+        text=read_text_file(fullpath)
+        return f"""
+        <h3>{escape(filename)}</h3>
+        <div style="white-space:pre-wrap;">{escape(text)}</div>
+        <p><a href="{url_for('library_bp.browse_library', subpath=subpath)}">← Back</a></p>
+        """
+
+    # fallback
     else:
-        # Остальные файлы => скачать
-        return send_from_directory(os.path.join(LIBRARY_FOLDER, subpath), filename, as_attachment=True)
+        content=read_text_file(fullpath)
+        return f"""
+        <h3>{escape(filename)}</h3>
+        <div style="white-space:pre-wrap;">{escape(content)}</div>
+        <p><a href="{url_for('library_bp.browse_library', subpath=subpath)}">← Back</a></p>
+        """
+
+@library_bp.route('/preview_doc')
+def preview_doc():
+    """Для doc/docx AJAX-просмотра."""
+    subpath = request.args.get("subpath","").strip()
+    filename= request.args.get("filename","").strip()
+    root = get_user_library_root()
+    folder= os.path.join(root, subpath)
+    full = os.path.join(folder, filename)
+    if not os.path.exists(full):
+        return "File not found"
+    ext = os.path.splitext(filename)[1].lower()
+    if ext not in [".doc",".docx"]:
+        return "Not a doc/docx file!"
+    html_code= convert_docx_to_html(full)
+    return html_code
