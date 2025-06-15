@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>User Authentication</title>
+  <style>
+    /* ====== ОБЩИЙ СТИЛЬ ====== */
+    body {
+      margin: 0;
+      padding: 20px;
+      font-family: Arial, sans-serif;
+      background: linear-gradient(to bottom, #e0f7fa, #fff);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    h1 {
+      text-align: center;
+      margin: 20px auto;
+      font-size: 32px;
+      color: #333;
+    }
+
+    .auth-container {
+      background: #fff;
+      border-radius: 10px;
+      padding: 30px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      width: 90%;
+      max-width: 600px;
+      margin-bottom: 20px;
+    }
+    .auth-container h3 {
+      margin-top: 0;
+      font-size: 22px;
+      color: #444;
+    }
+    .auth-row {
+      margin: 10px 0;
+    }
+    label {
+      margin-right: 6px;
+      font-weight: bold;
+    }
+    input[type="text"], input[type="password"] {
+      padding: 6px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      margin: 4px 0;
+    }
+    .btn {
+      background: linear-gradient(135deg, #00c9ff, #92fe9d);
+      border: none;
+      color: #333;
+      padding: 8px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: transform 0.3s, box-shadow 0.3s;
+      font-size: 15px;
+      font-weight: bold;
+      margin-top: 8px;
+    }
+    .btn:hover {
+      transform: scale(1.03);
+      box-shadow: 0 3px 10px rgba(0,0,0,0.15);
+    }
+
+    .message {
+      color: red;
+      font-weight: bold;
+      margin: 10px 0;
+    }
+
+    .login-status {
+      margin: 10px 0;
+      color: #666;
+    }
+
+    /* Navbar c "Main" кнопкой (при желании) */
+    .navbar {
+      width: 100%;
+      max-width: 900px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    .nav-left, .nav-right {
+      display: flex;
+      gap: 10px;
+    }
+    .main-btn {
+      background: #ff69b4;
+      color: #fff;
+      border-radius: 8px;
+      text-decoration: none;
+      font-weight: bold;
+      padding: 10px 14px;
+      transition: 0.3s;
+      box-shadow: 0 3px 8px rgba(0,0,0,0.2);
+    }
+    .main-btn:hover {
+      transform: scale(1.05);
+      box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    }
+
+    .back-main {
+      display: inline-block;
+      margin-top: 20px;
+      text-decoration: none;
+      color: #007bff;
+      font-weight: bold;
+      transition: color 0.3s;
+    }
+    .back-main:hover {
+      color: #0056b3;
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- При желании Navbar -->
+  <div class="navbar">
+    <div class="nav-left">
+      <a href="{{ url_for('index') }}" class="main-btn">Main</a>
+    </div>
+    <div class="nav-right">
+      <!-- Можете добавить что-то или оставить пустым -->
+    </div>
+  </div>
+
+  <h1>User Authentication</h1>
+
+  <div class="auth-container">
+    {% if message %}
+      <div class="message">{{ message }}</div>
+    {% endif %}
+
+    <hr>
+    <!-- Блок Register -->
+    <h3>Register</h3>
+    <form method="post" action="{{ url_for('auth_bp.register') }}">
+      <div class="auth-row">
+        <label>Username:</label>
+        <input type="text" name="username">
+      </div>
+      <div class="auth-row">
+        <label>Password:</label>
+        <input type="password" name="password">
+      </div>
+      <button class="btn">Register</button>
+    </form>
+
+    <hr>
+    <!-- Блок Login -->
+    <h3>Login</h3>
+    <form method="post" action="{{ url_for('auth_bp.login') }}">
+      <div class="auth-row">
+        <label>Username:</label>
+        <input type="text" name="username">
+      </div>
+      <div class="auth-row">
+        <label>Password:</label>
+        <input type="password" name="password">
+      </div>
+      <button class="btn">Login</button>
+    </form>
+
+    <hr>
+    <!-- Status -->
+    {% if session.user_id %}
+      <p class="login-status">You are logged in as <strong>{{ session.user_id }}</strong>.</p>
+      <form method="post" action="{{ url_for('auth_bp.logout') }}">
+        <button class="btn" style="background:linear-gradient(135deg,#fa709a,#f94144);color:#fff;">Logout</button>
+      </form>
+    {% else %}
+      <p class="login-status">Not logged in.</p>
+    {% endif %}
+  </div>
+
+  <a href="{{ url_for('index') }}" class="back-main">← Back to Main</a>
+
+</body>
+</html>

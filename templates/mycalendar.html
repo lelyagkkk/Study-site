@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Deadlines &amp; Categories</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+
+  <style>
+    /* Фон в стиле quizz.py */
+    body {
+      background: linear-gradient(to bottom, #fbc2eb, #a6c1ee);
+      margin: 0;
+      font-family: Arial, sans-serif;
+      min-height: 100vh;
+    }
+    h1 {
+      text-align: center;
+      margin: 20px;
+    }
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      background: #fff;
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      animation: fadein 0.5s ease;
+    }
+    @keyframes fadein {
+      from {opacity: 0; transform: scale(0.95);}
+      to   {opacity: 1; transform: scale(1);}
+    }
+
+    .nav-buttons {
+      text-align: center;
+      margin: 10px;
+    }
+    .nav-buttons a {
+      text-decoration: none;
+      padding: 10px 15px;
+      border-radius: 8px;
+      margin: 5px;
+      color: #fff;
+      font-weight: bold;
+      box-shadow: 0 3px 8px rgba(0,0,0,0.2);
+      transition: 0.3s;
+    }
+    .nav-buttons a:hover {
+      transform: scale(1.05);
+      box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    }
+    .main-btn {
+      background:#ff9800;
+    }
+    .account-btn {
+      background:#e91e63;
+    }
+
+    /* --- Pastel button --- */
+    .pastel-btn {
+      background: linear-gradient(135deg, #f8bfe9, #fbc2eb);
+      color: #333;
+      font-weight: bold;
+      border: none;
+      border-radius: 8px;
+      padding: 8px 14px;
+      transition: transform 0.3s, box-shadow 0.3s;
+    }
+    .pastel-btn:hover {
+      transform: scale(1.05);
+      box-shadow: 0 3px 8px rgba(0,0,0,0.2);
+    }
+
+    /* Категория card */
+    .category-card {
+      border: 2px solid;
+      border-radius: 8px;
+      padding: 10px;
+      margin-bottom: 15px;
+      background:#f7f7f7;
+      transition: 0.3s;
+    }
+    .category-card:hover {
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+    .category-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+    }
+    .category-title {
+      font-size: 20px;
+      font-weight: bold;
+      margin: 0;
+    }
+    .category-body {
+      margin-top: 8px;
+      overflow: hidden;
+      max-height: 0;
+      opacity: 0;
+      transition: max-height 0.4s ease, opacity 0.4s;
+    }
+    .category-body.open {
+      max-height: 2000px;
+      opacity: 1;
+    }
+
+    /* Дедлайн */
+    .deadline-card {
+      background: #fff;
+      border-left: 10px solid #ff69b4;
+      border-radius: 8px;
+      margin-bottom: 12px;
+      padding: 10px;
+      transition: 0.3s;
+    }
+    .deadline-card:hover {
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .deadline-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .deadline-date {
+      font-weight:bold;
+      margin-right:8px;
+    }
+
+    /* Subtasks (анимация) */
+    .subtasks-container {
+      margin-left: 25px;
+      margin-top: 8px;
+      overflow: hidden;
+      max-height: 0;
+      opacity: 0;
+      transition: max-height 0.4s ease, opacity 0.4s;
+    }
+    .subtasks-container.open {
+      max-height: 1000px;
+      opacity: 1;
+    }
+    .subtask-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 4px 0;
+      background: #fafafa;
+      padding: 4px 8px;
+      border-radius: 6px;
+      transition: background 0.2s;
+    }
+    .subtask-item:hover {
+      background:#f0f0f0;
+    }
+    .subtask-item.done .subtask-text {
+      text-decoration: line-through;
+      color: #999;
+    }
+    .toggle-subtasks {
+      cursor: pointer;
+      color: #2196F3;
+      text-decoration: underline;
+      font-size: 0.9rem;
+      margin-left:15px;
+      transition: color 0.3s;
+    }
+    .toggle-subtasks:hover {
+      color: #0d47a1;
+    }
+  </style>
+
+  <script>
+  // Сворачивание/разворачивание category
+  function toggleCategoryBody(catId){
+    let body=document.getElementById("cat-body-"+catId);
+    if(!body)return;
+    body.classList.toggle("open");
+  }
+
+  // Удаляем (fetch POST)
+  function deleteDeadline(itemId){
+    if(!confirm("Delete this item?"))return;
+    fetch("/calendar/delete_deadline/"+itemId,{method:"POST"})
+      .then(resp=>resp.text())
+      .then(data=>location.reload());
+  }
+
+  // Дедлайн -> subtasks
+  function toggleSubtasks(did){
+    let blk=document.getElementById("subtasks-"+did);
+    if(!blk)return;
+    blk.classList.toggle("open");
+  }
+  function markSubtaskDone(did, idx, done){
+    fetch("/calendar/mark_subtask", {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({
+        "deadline_id":did,
+        "subtask_index":idx,
+        "done":done
+      })
+    }).then(r=>location.reload());
+  }
+  function deleteSubtask(did, idx){
+    if(!confirm("Delete subtask?"))return;
+    fetch("/calendar/delete_subtask", {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({
+        "deadline_id":did,
+        "subtask_index":idx
+      })
+    }).then(r=>location.reload());
+  }
+  </script>
+</head>
+
+<body>
+  <div class="nav-buttons">
+    <a href="{{ url_for('index') }}" class="main-btn">Main</a>
+    <a href="{{ url_for('account_bp.account') }}" class="account-btn">My Account</a>
+  </div>
+
+  <h1>Deadlines &amp; Categories</h1>
+
+  <div class="container">
+    <!-- Add Category Form -->
+    <form method="post" action="{{ url_for('mycalendar_bp.add_category') }}" style="margin-bottom:20px;">
+      <div class="row g-2">
+        <div class="col-md-7">
+          <label>Category Name:</label>
+          <input type="text" name="category_name" class="form-control" placeholder="e.g. Study" required>
+        </div>
+        <div class="col-md-3">
+          <label>Color:</label>
+          <input type="color" name="category_color" class="form-control form-control-color" value="#666666">
+        </div>
+        <div class="col-md-2 d-flex align-items-end">
+          <button class="pastel-btn w-100" style="margin-top:30px;">Add Category</button>
+        </div>
+      </div>
+    </form>
+
+    <!-- Add Deadline Form -->
+    <form method="post" action="{{ url_for('mycalendar_bp.add_deadline') }}">
+      <div class="row g-2">
+        <div class="col-md-3">
+          <label>Date:</label>
+          <input type="date" name="date" class="form-control" required>
+        </div>
+        <div class="col-md-3">
+          <label>Title:</label>
+          <input type="text" name="title" class="form-control" placeholder="Deadline Title" required>
+        </div>
+        <div class="col-md-2">
+          <label>Color:</label>
+          <input type="color" name="color" class="form-control form-control-color" value="#ff69b4">
+        </div>
+        <div class="col-md-4">
+          <label>Category:</label>
+          <select name="category_id" class="form-select">
+            <option value="0">No category</option>
+            {% for cat in categories %}
+              <option value="{{ cat.id }}">{{ cat.title }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="row" style="margin-top:12px;">
+        <div class="col-md-12 d-flex justify-content-end">
+          <button class="pastel-btn">Add Deadline</button>
+        </div>
+      </div>
+    </form>
+
+    <hr>
+
+    <!-- Список категорий -->
+    {% if categories %}
+      <h2>Categories:</h2>
+      {% for cat in categories %}
+        <div class="category-card" style="border-color:{{ cat.color|default('#666') }};" id="cat-{{ cat.id }}">
+          <div class="category-header" onclick="toggleCategoryBody({{ cat.id }})">
+            <h3 class="category-title" style="color:{{ cat.color|default('#666') }};">{{ cat.title }}</h3>
+            <button class="btn btn-sm btn-outline-danger"
+                    style="margin-left:10px;"
+                    onclick="event.stopPropagation(); deleteDeadline({{ cat.id }})">
+              Delete
+            </button>
+          </div>
+          <div class="category-body" id="cat-body-{{ cat.id }}">
+            <!-- Сюда вставим дедлайны JS-скриптом -->
+          </div>
+        </div>
+      {% endfor %}
+    {% else %}
+      <h2>Categories:</h2>
+      <p style="color:#666; font-style:italic;">No categories yet. Create above!</p>
+    {% endif %}
+
+    <hr>
+
+    <h2>Deadlines:</h2>
+    {% set cat_map={} %}
+    {% for c in categories %}
+      {% set _dummy=cat_map.update({c.id:c}) %}
+    {% endfor %}
+
+    {% set group_deadlines={} %}
+    {% for d in deadlines %}
+      {% set cid=d.category_id|default(0) %}
+      {% if cid not in group_deadlines %}
+        {% set _dummy=group_deadlines.update({cid:[]}) %}
+      {% endif %}
+      {% set _dummy=group_deadlines[cid].append(d) %}
+    {% endfor %}
+
+    <!-- NO CATEGORY block -->
+    <div style="margin-bottom:20px;">
+      <h4>No category</h4>
+      {% if 0 in group_deadlines %}
+        {% for d in group_deadlines[0] %}
+          <div class="deadline-card" style="border-left-color:{{ d.color }};">
+            <div class="deadline-header">
+              <div>
+                <span class="deadline-date">
+                  {{ d.date }}
+                  {% if d.weekday %} ({{ d.weekday }}){% endif %}
+                </span>
+                <strong>{{ d.title }}</strong>
+              </div>
+              <div>
+                <button onclick="deleteDeadline({{ d.id }})"
+                        class="btn btn-sm btn-outline-danger" style="margin-right:6px;">
+                  Delete
+                </button>
+                <span class="toggle-subtasks" onclick="event.stopPropagation(); toggleSubtasks({{ d.id }})">
+                  Subtasks ({{ d.subtasks|length }})
+                </span>
+              </div>
+            </div>
+            <!-- Subtasks -->
+            <div id="subtasks-{{ d.id }}" class="subtasks-container">
+              {% for s in d._subtasks_enumerated %}
+                <div class="subtask-item {% if s.done %}done{% endif %}">
+                  <input type="checkbox"
+                         onclick="markSubtaskDone({{ d.id }}, {{ s.idx }}, this.checked)"
+                         {% if s.done %}checked{% endif %}>
+                  <span class="subtask-text">{{ s.text }}</span>
+                  <button onclick="deleteSubtask({{ d.id }}, {{ s.idx }})"
+                          class="btn btn-sm btn-outline-danger" style="margin-left:auto;">
+                    X
+                  </button>
+                </div>
+              {% endfor %}
+              <form method="post" action="{{ url_for('mycalendar_bp.add_subtask') }}">
+                <input type="hidden" name="deadline_id" value="{{ d.id }}">
+                <div class="input-group" style="margin-top:6px;">
+                  <input type="text" name="subtask_text" class="form-control" placeholder="New subtask...">
+                  <button class="btn btn-secondary">Add</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        {% endfor %}
+      {% else %}
+        <p style="color:#666; font-style:italic;">(none)</p>
+      {% endif %}
+    </div>
+
+    <!-- Категорийные дедлайны -->
+    {% for cat in categories %}
+      {% set cid=cat.id %}
+      {% if cid in group_deadlines %}
+        <script>
+        // JS вставит их в cat-body-{{ cid }}
+        </script>
+        <div id="cat-deadlines-{{ cid }}" style="display:none;">
+          {% for d in group_deadlines[cid] %}
+            <div class="deadline-card" style="border-left-color:{{ d.color }};">
+              <div class="deadline-header">
+                <div>
+                  <span class="deadline-date">
+                    {{ d.date }}
+                    {% if d.weekday %} ({{ d.weekday }}){% endif %}
+                  </span>
+                  <strong>{{ d.title }}</strong>
+                </div>
+                <div>
+                  <button onclick="deleteDeadline({{ d.id }})"
+                          class="btn btn-sm btn-outline-danger" style="margin-right:6px;">
+                    Delete
+                  </button>
+                  <span class="toggle-subtasks" onclick="event.stopPropagation(); toggleSubtasks({{ d.id }})">
+                    Subtasks ({{ d.subtasks|length }})
+                  </span>
+                </div>
+              </div>
+              <!-- subtasks -->
+              <div id="subtasks-{{ d.id }}" class="subtasks-container">
+                {% for s in d._subtasks_enumerated %}
+                  <div class="subtask-item {% if s.done %}done{% endif %}">
+                    <input type="checkbox"
+                           onclick="markSubtaskDone({{ d.id }}, {{ s.idx }}, this.checked)"
+                           {% if s.done %}checked{% endif %}>
+                    <span class="subtask-text">{{ s.text }}</span>
+                    <button onclick="deleteSubtask({{ d.id }}, {{ s.idx }})"
+                            class="btn btn-sm btn-outline-danger" style="margin-left:auto;">
+                      X
+                    </button>
+                  </div>
+                {% endfor %}
+                <form method="post" action="{{ url_for('mycalendar_bp.add_subtask') }}">
+                  <input type="hidden" name="deadline_id" value="{{ d.id }}">
+                  <div class="input-group" style="margin-top:6px;">
+                    <input type="text" name="subtask_text" class="form-control" placeholder="New subtask...">
+                    <button class="btn btn-secondary">Add</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endfor %}
+  </div>
+
+  <script>
+  // После загрузки, перемещаем дедлайны внутрь body каждой категории + показываем
+  document.addEventListener("DOMContentLoaded",function(){
+    {% for cat in categories %}
+      let cid={{ cat.id }};
+      let catBody=document.getElementById("cat-body-"+cid);
+      let groupDiv=document.getElementById("cat-deadlines-"+cid);
+      if(catBody && groupDiv){
+        catBody.appendChild(groupDiv);
+        groupDiv.style.display='';
+      }
+    {% endfor %}
+  });
+  </script>
+</body>
+</html>

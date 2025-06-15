@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>My Personal Library</title>
+  <style>
+    /* ===== Нежный фон ==== */
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: linear-gradient(to bottom, #fbc2eb, #a6c1ee);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      color: #333;
+    }
+    .header {
+      width: 100%;
+      max-width:1000px;
+      display: flex;
+      justify-content: space-between;
+      align-items:center;
+      padding:10px 20px;
+      box-sizing:border-box;
+    }
+    .account-btn {
+      background-color:#ff69b4;
+      color:#fff;
+      padding:8px 14px;
+      border-radius:8px;
+      text-decoration:none;
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      font-size:16px;
+      transition:transform 0.3s, box-shadow 0.3s;
+    }
+    .account-btn::before {
+      content:"👤";
+      font-size:18px;
+    }
+    .account-btn:hover {
+      transform:scale(1.05);
+    }
+    .header-right {
+      display:flex;
+      align-items:center;
+      gap:10px;
+      position:relative;
+    }
+    .nav-btn {
+      padding:8px 14px;
+      border-radius:8px;
+      color:#fff;
+      text-decoration:none;
+      font-size:16px;
+      font-weight:bold;
+      transition:transform 0.3s, box-shadow 0.3s;
+      box-shadow:0 3px 8px rgba(0,0,0,0.2);
+    }
+    .nav-btn:hover {
+      transform:scale(1.05);
+      box-shadow:0 4px 10px rgba(0,0,0,0.2);
+    }
+    .calendar-btn {
+      background-color:#4caf50;
+    }
+    .regimes-btn {
+      background-color:#6a1b9a;
+      cursor:pointer;
+    }
+    .dropdown {
+      display:none;
+      position:absolute;
+      top:110%;
+      right:0;
+      background:#fff;
+      border:1px solid #ccc;
+      border-radius:8px;
+      box-shadow:0 4px 8px rgba(0,0,0,0.1);
+      z-index:1000;
+    }
+    .dropdown a {
+      display:block;
+      padding:8px 12px;
+      text-decoration:none;
+      color:#fff;
+      font-size:15px;
+      transition:background 0.3s;
+    }
+    .dropdown a:hover {
+      opacity:0.9;
+    }
+    .dropdown a.quizz {
+      background-color:#ff9800;
+    }
+    .dropdown a.coding {
+      background-color:#2196F3;
+    }
+    .dropdown a.pichide {
+      background-color:#6c757d;
+    }
+    .main-btn {
+      background-color:#ff69b4;
+      color:#fff;
+      padding:10px 20px;
+      border-radius:10px;
+      text-decoration:none;
+      font-size:18px;
+      font-weight:bold;
+      transition:transform 0.3s, box-shadow 0.3s;
+      box-shadow:0 3px 8px rgba(0,0,0,0.2);
+    }
+    .main-btn:hover {
+      transform:scale(1.05);
+      box-shadow:0 4px 10px rgba(0,0,0,0.2);
+    }
+    .root-library {
+      margin-top:20px;
+    }
+    .root-library a {
+      background-color:#f44336;
+      color:#fff;
+      padding:8px 14px;
+      border-radius:8px;
+      text-decoration:none;
+      font-size:16px;
+      font-weight:bold;
+      transition:transform 0.3s, box-shadow 0.3s;
+      box-shadow:0 3px 8px rgba(0,0,0,0.2);
+    }
+    .root-library a:hover {
+      transform:scale(1.05);
+      box-shadow:0 4px 10px rgba(0,0,0,0.2);
+    }
+    .library-container {
+      background:#fff;
+      border-radius:15px;
+      padding:20px;
+      box-shadow:0 4px 10px rgba(0,0,0,0.1);
+      width:90%;
+      max-width:700px;
+      margin-top:20px;
+    }
+    .folder-list, .file-list {
+      list-style:none;
+      padding-left:0;
+    }
+    .folder-list li, .file-list li {
+      margin:5px 0;
+      display:flex;
+      align-items:center;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+    .item-link {
+      text-decoration:none;
+      font-size:16px;
+      font-weight:bold;
+      padding:4px 8px;
+      border-radius:4px;
+      transition:background 0.3s;
+    }
+    .item-link:hover {
+      background:rgba(0,0,0,0.05);
+    }
+    .delete-btn {
+      padding:4px 8px;
+      background:#f44336;
+      color:#fff;
+      border:none;
+      border-radius:6px;
+      font-size:14px;
+      cursor:pointer;
+      transition:transform 0.2s;
+    }
+    .delete-btn:hover {
+      transform:scale(1.05);
+    }
+    .move-btn {
+      padding:6px 12px;
+      background:linear-gradient(135deg,#9c27b0,#7b1fa2);
+      color:#fff;
+      border:none;
+      border-radius:6px;
+      font-size:14px;
+      cursor:pointer;
+      transition:transform 0.3s;
+    }
+    .move-btn:hover {
+      transform:scale(1.05);
+    }
+    .rename-btn {
+      padding:4px 8px;
+      background:#2196F3;
+      color:#fff;
+      border:none;
+      border-radius:6px;
+      font-size:14px;
+      cursor:pointer;
+      transition:transform 0.2s;
+    }
+    .rename-btn:hover {
+      transform:scale(1.05);
+    }
+    .back-link {
+      margin-top:20px;
+      text-align:center;
+    }
+    .back-link a {
+      text-decoration:none;
+      font-size:16px;
+      color:#f44336;
+      font-weight:bold;
+      transition:color 0.3s;
+    }
+    .back-link a:hover {
+      color:#d32f2f;
+    }
+    .folder-item {
+      display:flex;
+      align-items:center;
+      gap:8px;
+    }
+    .folder-icon {
+      font-size:20px;
+    }
+    /* Move Modal */
+    #moveModal {
+      position:fixed;
+      top:50%; left:50%;
+      transform:translate(-50%,-50%);
+      background:#fff;
+      border:2px solid #999;
+      border-radius:8px;
+      padding:20px;
+      width:300px;
+      max-height:60vh;
+      overflow-y:auto;
+      z-index:9999;
+      display:none;
+    }
+    #moveModal h3 {
+      margin-top:0;
+      font-size:18px;
+      color:#333;
+    }
+    .folder-list-modal {
+      list-style:none;
+      padding-left:0;
+      margin:0;
+    }
+    .folder-list-modal li {
+      margin:3px 0;
+      cursor:pointer;
+      color:#2196F3;
+      text-decoration:underline;
+      font-size:16px;
+    }
+    .folder-list-modal li:hover {
+      background:#eee;
+    }
+    #moveCloseBtn {
+      background:#f44336;
+      color:#fff;
+      border:none;
+      border-radius:6px;
+      padding:6px 10px;
+      float:right;
+      cursor:pointer;
+    }
+    /* Rename Modal */
+    #renameModal {
+      position:fixed;
+      top:50%; left:50%;
+      transform:translate(-50%,-50%);
+      background:#fff;
+      border:2px solid #999;
+      border-radius:8px;
+      padding:20px;
+      width:300px;
+      max-height:60vh;
+      overflow-y:auto;
+      z-index:9999;
+      display:none;
+    }
+    #renameModal h3 {
+      margin-top:0;
+      font-size:18px;
+      color:#333;
+    }
+    #renameCloseBtn {
+      background:#f44336;
+      color:#fff;
+      border:none;
+      border-radius:6px;
+      padding:6px 10px;
+      float:right;
+      cursor:pointer;
+    }
+    /* doc preview modal */
+    #docPreviewModal {
+      position:fixed;
+      top:50%; left:50%;
+      transform:translate(-50%,-50%);
+      background:#fff;
+      border:2px solid #999;
+      border-radius:8px;
+      padding:20px;
+      width:600px;
+      height:70vh;
+      overflow-y:auto;
+      z-index:9999;
+      display:none;
+    }
+    #docPreviewModal h3 {
+      margin-top:0;
+      font-size:18px;
+      color:#333;
+    }
+    #docPreviewCloseBtn {
+      background:#f44336;
+      color:#fff;
+      border:none;
+      border-radius:6px;
+      padding:6px 10px;
+      float:right;
+      cursor:pointer;
+    }
+    .doc-action-btn {
+      background:#ff69b4;
+      color:#fff;
+      border:none;
+      border-radius:6px;
+      padding:8px 12px;
+      margin-right:6px;
+      cursor:pointer;
+      transition:0.3s;
+    }
+    .doc-action-btn:hover {
+      opacity:0.85;
+    }
+    #docPreviewContent {
+      border:1px solid #ddd;
+      padding:10px;
+      margin:10px 0;
+      min-height:100px;
+      background:#fafafa;
+    }
+    /* Create/Upload */
+    .actions-row {
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+      margin-top:16px;
+      align-items:center;
+    }
+    .actions-row form {
+      display:flex;
+      gap:8px;
+      align-items:center;
+      margin:0;
+      padding:0;
+    }
+    .actions-row input[type="text"] {
+      padding:6px;
+      border:1px solid #ccc;
+      border-radius:6px;
+      font-size:14px;
+      transition:box-shadow 0.3s;
+    }
+    .actions-row input[type="text"]:focus {
+      box-shadow:0 0 6px rgba(0,0,0,0.2);
+      outline:none;
+    }
+    /* Улучшаем кнопку Choose File */
+    .actions-row input[type="file"] {
+      display:none;
+    }
+    .custom-file-label {
+      background:#f9f9f9;
+      border:1px solid #ccc;
+      border-radius:6px;
+      padding:6px 12px;
+      font-size:14px;
+      cursor:pointer;
+      transition:0.3s;
+    }
+    .custom-file-label:hover {
+      box-shadow:0 0 4px rgba(0,0,0,0.1);
+      background:#eee;
+    }
+    .file-chosen {
+      font-size:14px;
+      color:#666;
+    }
+    .actions-row button.btn {
+      font-size:14px;
+      padding:6px 12px;
+      border-radius:8px;
+      cursor:pointer;
+      transition:transform 0.3s, box-shadow 0.3s;
+      background:linear-gradient(135deg,#ff80ab,#ff4081);
+      border:none;
+      color:#fff;
+      font-weight:bold;
+    }
+    .actions-row button.btn:hover {
+      transform:scale(1.05);
+      box-shadow:0 3px 8px rgba(0,0,0,0.2);
+    }
+  </style>
+  <script>
+    document.addEventListener("DOMContentLoaded",function(){
+      // Dropdown
+      const regimesBtn=document.getElementById("regimesBtn");
+      const dropdown=document.getElementById("regimesDropdown");
+      if(regimesBtn && dropdown){
+        regimesBtn.addEventListener("click",function(e){
+          e.stopPropagation();
+          dropdown.style.display=(dropdown.style.display==="block")?"none":"block";
+        });
+        document.addEventListener("click",function(){
+          dropdown.style.display="none";
+        });
+      }
+
+      // Custom file label
+      let fileInput=document.querySelector('.actions-row input[type="file"]');
+      let fileLabel=document.querySelector('.custom-file-label');
+      let fileChosen=document.querySelector('.file-chosen');
+      if(fileInput && fileLabel && fileChosen){
+        fileLabel.addEventListener("click",function(){
+          fileInput.click();
+        });
+        fileInput.addEventListener("change",function(){
+          if(fileInput.files && fileInput.files.length>0){
+            fileChosen.textContent=fileInput.files[0].name;
+          } else {
+            fileChosen.textContent="No file chosen";
+          }
+        });
+      }
+    });
+
+    function confirmDelete(){
+      return confirm("Are you sure you want to delete?");
+    }
+
+    // ========== MOVE ==========
+    let CURRENT_OLD_SUBPATH="";
+    let CURRENT_BASENAME="";
+    let allFolders=[];
+
+    function openMoveModal(oldSubpath, baseName){
+      CURRENT_OLD_SUBPATH=oldSubpath;
+      CURRENT_BASENAME=baseName;
+      document.getElementById("moveModal").style.display='block';
+    }
+    function closeMoveModal(){
+      document.getElementById("moveModal").style.display='none';
+    }
+    function loadFoldersAndShow(oldSubpath, baseName){
+      fetch("{{ url_for('library_bp.all_folders_json') }}")
+      .then(r=>r.json())
+      .then(data=>{
+        allFolders=data;
+        let ul=document.getElementById("moveModalList");
+        ul.innerHTML='';
+        data.forEach(fp=>{
+          let li=document.createElement('li');
+          li.textContent=fp;
+          li.addEventListener("click",function(){
+            submitMoveItem(oldSubpath,fp,baseName);
+          });
+          ul.appendChild(li);
+        });
+        openMoveModal(oldSubpath, baseName);
+      });
+    }
+    function submitMoveItem(oldSubpath,newFolder,baseName){
+      let form=document.getElementById("moveItemForm");
+      document.getElementById("old_path_input").value=oldSubpath;
+      document.getElementById("new_path_input").value=newFolder+"/"+baseName;
+      form.submit();
+    }
+
+    // ========== RENAME ==========
+    let renameOldPath="";
+    function openRenameModal(oldPath){
+      renameOldPath=oldPath;
+      document.getElementById("renameModal").style.display='block';
+    }
+    function closeRenameModal(){
+      document.getElementById("renameModal").style.display='none';
+    }
+    function submitRename(){
+      let newName=document.getElementById("rename_new_name").value.trim();
+      if(!newName){
+        alert("Enter new name!");
+        return;
+      }
+      let form=document.getElementById("renameForm");
+      document.getElementById("rename_old_path_input").value=renameOldPath;
+      document.getElementById("rename_new_name_input").value=newName;
+      form.submit();
+    }
+
+    // ========== doc/docx Preview ==========
+    function openDocPreview(subpath, file){
+      let modal=document.getElementById("docPreviewModal");
+      modal.style.display='block';
+      document.getElementById("docPreviewContent").innerHTML="<p style='color:#666;'>Loading preview...</p>";
+      // AJAX
+      fetch(`{{ url_for('library_bp.preview_doc') }}?subpath=${encodeURIComponent(subpath)}&filename=${encodeURIComponent(file)}`)
+      .then(r=>r.text())
+      .then(html=>{
+        document.getElementById("docPreviewContent").innerHTML=html;
+      })
+      .catch(err=>{
+        document.getElementById("docPreviewContent").innerHTML="<p style='color:red;'>Error loading doc preview</p>";
+      });
+      document.getElementById("docPreviewMCBtn").onclick=function(){
+        window.location.href=`/mc_quiz_word?src=${encodeURIComponent(subpath+"/"+file)}`;
+      }
+      document.getElementById("docPreviewMatchBtn").onclick=function(){
+        window.location.href=`/matching?src=${encodeURIComponent(subpath+"/"+file)}`;
+      }
+    }
+    function closeDocPreview(){
+      document.getElementById("docPreviewModal").style.display='none';
+    }
+  </script>
+</head>
+<body>
+  <!-- Header -->
+  <div class="header" style="width:100%;max-width:1000px;">
+    <!-- Left -->
+    <div class="header-left">
+      <a href="{{ url_for('account_bp.account') }}" class="account-btn">My Personal Account</a>
+    </div>
+    <!-- Center -->
+    <div class="header-center">
+      <a href="{{ url_for('index') }}" class="main-btn">Main</a>
+    </div>
+    <!-- Right -->
+    <div class="header-right">
+      <a href="{{ url_for('mycalendar_bp.index_calendar') }}" class="nav-btn calendar-btn">📅 Calendar</a>
+      <div id="regimesBtn" class="nav-btn regimes-btn">Regimes</div>
+      <div id="regimesDropdown" class="dropdown">
+        <a href="{{ url_for('quizz.quizz') }}" class="quizz">Quizz</a>
+        <a href="{{ url_for('coding.coding') }}" class="coding">Coding</a>
+        <a href="/pichide" class="pichide">Pichide</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Root library link -->
+  <div class="root-library">
+    <a href="{{ url_for('library_bp.browse_library') }}">Root library</a>
+  </div>
+
+  <!-- Container -->
+  <div class="library-container">
+    {% if parent_folder %}
+      <div class="back-link">
+        <a href="{{ url_for('library_bp.browse_library', subpath=parent_folder) }}">← Up to parent folder</a>
+      </div>
+    {% endif %}
+
+    <h3>Folders in {{ current_folder|default('.') }}</h3>
+    <ul class="folder-list">
+      {% for f in folders %}
+        <li>
+          <span class="folder-icon">📁</span>
+          <a class="item-link" 
+             href="{{ url_for('library_bp.browse_library', subpath=(subpath + '/' + f).strip('/')) }}">
+            {{ f }}
+          </a>
+          <!-- Delete -->
+          <form method="post" style="display:inline;" onsubmit="return confirmDelete()"
+                action="{{ url_for('library_bp.delete_item', subpath=(subpath + '/' + f).strip('/')) }}">
+            <button type="submit" class="delete-btn">Delete</button>
+          </form>
+          <!-- Move -->
+          <button class="move-btn" 
+                  onclick="loadFoldersAndShow('{{ (subpath + '/' + f).strip('/') }}','{{ f }}')">
+            Move
+          </button>
+          <!-- Rename -->
+          <button class="rename-btn" onclick="openRenameModal('{{ (subpath+'/'+f).strip('/') }}')">Rename</button>
+        </li>
+      {% endfor %}
+    </ul>
+
+    <h3>Files in {{ current_folder|default('.') }}</h3>
+    <ul class="file-list">
+      {% for file in files %}
+        <li>
+          {% set file_ext = '.' + file.split('.')[-1]|lower %}
+          {% if file_ext in ['.doc','.docx'] %}
+            <!-- doc/docx => Preview modal + choose MC or Matching -->
+            <span class="item-link" style="cursor:pointer;"
+                  onclick="openDocPreview('{{ subpath }}','{{ file }}')">
+              📄 {{ file }}
+            </span>
+          {% else %}
+            <!-- everything else => open_file (HTML has no raw block now) -->
+            <a class="item-link" 
+               href="{{ url_for('library_bp.browse_library', subpath=subpath or '.') }}/file/{{ file }}">
+              📄 {{ file }}
+            </a>
+          {% endif %}
+          <!-- Delete -->
+          <form method="post" style="display:inline;" onsubmit="return confirmDelete()"
+                action="{{ url_for('library_bp.delete_item', subpath=(subpath + '/' + file).strip('/')) }}">
+            <button type="submit" class="delete-btn">Delete</button>
+          </form>
+          <!-- Move -->
+          <button class="move-btn" 
+                  onclick="loadFoldersAndShow('{{ (subpath + '/' + file).strip('/') }}','{{ file }}')">
+            Move
+          </button>
+          <!-- Rename -->
+          <button class="rename-btn" onclick="openRenameModal('{{ (subpath+'/'+file).strip('/') }}')">Rename</button>
+        </li>
+      {% endfor %}
+    </ul>
+
+    <!-- Actions row: create folder + upload file -->
+    <div class="actions-row">
+      <!-- Create Folder -->
+      <form method="post" action="{{ url_for('library_bp.create_folder', subpath=subpath) }}">
+        <input type="text" name="folder_name" placeholder="New folder name" required>
+        <button type="submit" class="btn">Create Folder</button>
+      </form>
+
+      <!-- Upload File -->
+      <form method="post" action="{{ url_for('library_bp.upload_file', subpath=subpath) }}" enctype="multipart/form-data">
+        <!-- Custom file input -->
+        <label class="custom-file-label">Choose File</label>
+        <span class="file-chosen">No file chosen</span>
+        <input type="file" name="file" required>
+        <button type="submit" class="btn">Upload File</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Move Modal -->
+  <div id="moveModal">
+    <button id="moveCloseBtn" onclick="closeMoveModal()">X</button>
+    <h3>Select folder to move into:</h3>
+    <ul id="moveModalList" class="folder-list-modal"></ul>
+  </div>
+  <form id="moveItemForm" method="post" action="{{ url_for('library_bp.move_item') }}" style="display:none;">
+    <input type="hidden" name="old_path" id="old_path_input">
+    <input type="hidden" name="new_path" id="new_path_input">
+  </form>
+
+  <!-- Rename Modal -->
+  <div id="renameModal">
+    <button id="renameCloseBtn" onclick="closeRenameModal()">X</button>
+    <h3>Rename item</h3>
+    <input type="text" id="rename_new_name" placeholder="Enter new name" style="width:100%;margin-bottom:10px;">
+    <button onclick="submitRename()" style="padding:6px 12px; background:#2196F3; color:#fff; border:none; border-radius:6px;">
+      Rename
+    </button>
+  </div>
+  <form id="renameForm" method="post" action="{{ url_for('library_bp.rename_item') }}" style="display:none;">
+    <input type="hidden" name="old_path" id="rename_old_path_input">
+    <input type="hidden" name="new_name" id="rename_new_name_input">
+  </form>
+
+  <!-- Doc Preview Modal -->
+  <div id="docPreviewModal">
+    <button id="docPreviewCloseBtn" onclick="closeDocPreview()">X</button>
+    <h3>Preview &amp; Choose action</h3>
+    <div id="docPreviewContent"></div>
+    <button id="docPreviewMCBtn" class="doc-action-btn">Multiple choice</button>
+    <button id="docPreviewMatchBtn" class="doc-action-btn">Matching</button>
+  </div>
+</body>
+</html>

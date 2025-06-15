@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Multiple Choice Quiz из Word</title>
+  <style>
+    /* ====== БАЗОВЫЙ ФОН ====== */
+    body {
+      background: linear-gradient(135deg, #fbc2eb, #a6c1ee);
+      margin: 0;
+      padding: 20px;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ====== NAVBAR ====== */
+    .navbar {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .btn {
+      color: #fff;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+      text-decoration: none;
+      transition: transform 0.3s, box-shadow 0.3s;
+      font-weight: bold;
+      box-shadow: 0 3px 8px rgba(0,0,0,0.2);
+    }
+    .btn:hover {
+      transform: scale(1.05);
+      box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+    }
+    .main-btn { background-color: #ff69b4; }
+    .hide-btn { background-color: #6c757d; }
+    .coding-btn { background-color: #2196F3; }
+    .account-btn {
+      background-color: #ff69b4;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      text-decoration: none;
+    }
+    .account-btn::before {
+      content: "👤";
+      font-size: 18px;
+    }
+
+    /* ====== КОНТЕЙНЕР ОСНОВНОЙ ====== */
+    .container {
+      background: #fff;
+      border-radius: 15px;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 25px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+      animation: fadeIn 0.7s ease-out;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 20px;
+      font-size: 28px;
+      color: #333;
+    }
+
+    /* ====== ФОРМА ЗАГРУЗКИ WORD ====== */
+    .quiz-form {
+      margin-bottom: 25px;
+      text-align: center;
+    }
+    .quiz-form label {
+      font-size: 16px;
+      margin-right: 10px;
+      color: #555;
+    }
+    .quiz-form input[type="file"] {
+      margin-bottom: 10px;
+      font-size: 16px;
+    }
+    .quiz-form textarea {
+      width: 100%;
+      min-height: 80px;
+      border: 2px dashed #ccc;
+      border-radius: 8px;
+      padding: 10px;
+      resize: vertical;
+      margin-bottom: 12px;
+      font-size: 15px;
+      color: #333;
+    }
+    .quiz-form button {
+      background: linear-gradient(135deg, #00c9ff, #92fe9d);
+      color: #333;
+      border: none;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-size: 17px;
+      cursor: pointer;
+      transition: transform 0.3s, box-shadow 0.3s;
+    }
+    .quiz-form button:hover {
+      transform: scale(1.04);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+
+    /* ====== КАРТОЧКИ ВОПРОСОВ ====== */
+    .quiz-question {
+      margin-bottom: 25px;
+      padding: 15px;
+      background: #fff;
+      border: 2px solid #ececec;
+      border-radius: 12px;
+      box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+      animation: fadeInUp 0.5s ease;
+    }
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .quiz-question p {
+      font-size: 20px;
+      margin-bottom: 12px;
+      color: #444;
+    }
+
+    /* ====== СПИСОК ОТВЕТОВ ====== */
+    .mc-options {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    /* ====== ОДНА СТРОКА ОТВЕТА ====== */
+    .mc-option-row {
+      display: flex;
+      align-items: center;
+      background: #f9f9f9;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 8px 12px;
+      position: relative;
+      cursor: pointer;
+      transition: background 0.3s, box-shadow 0.3s;
+    }
+    .mc-option-row:hover {
+      background: #f0f0f0;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+
+    /* Радиокнопка слева */
+    .mc-option-row input[type="radio"] {
+      margin-right: 10px;
+      transform: scale(1.2);
+      cursor: pointer;
+    }
+    .mc-option-label {
+      flex: 1;
+      font-size: 16px;
+      color: #333;
+    }
+
+    /* Иконка корзины справа (декоративно) */
+    .trash-icon {
+      font-size: 18px;
+      color: #999;
+      margin-left: 10px;
+      transition: color 0.2s, transform 0.2s;
+    }
+    .mc-option-row:hover .trash-icon {
+      color: #ff5c5c;
+      transform: scale(1.1);
+    }
+
+    /* ====== ПРАВИЛЬНЫЙ / НЕПРАВИЛЬНЫЙ ОТВЕТ ====== */
+    @keyframes correctPulse {
+      0%   { transform: scale(1); }
+      50%  { transform: scale(1.1); }
+      100% { transform: scale(1); }
+    }
+    .correct-row {
+      background: #c8f7c5 !important;
+      animation: correctPulse 0.5s forwards;
+    }
+    @keyframes wrongShake {
+      0%   { transform: translateX(0); }
+      20%  { transform: translateX(-5px); }
+      40%  { transform: translateX(5px); }
+      60%  { transform: translateX(-5px); }
+      80%  { transform: translateX(5px); }
+      100% { transform: translateX(0); }
+    }
+    .incorrect-row {
+      background: #f9c0c0 !important;
+      animation: wrongShake 0.5s forwards;
+    }
+
+    /* ====== ПРОГРЕСС-БАР ====== */
+    #progressContainer {
+      position: fixed;
+      right: 20px;
+      bottom: 20px;
+      width: 220px;
+      height: 30px;
+      background: #eee;
+      border-radius: 15px;
+      overflow: hidden;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      padding: 0 5px;
+      box-sizing: border-box;
+      transition: all 0.3s;
+    }
+    #progressBar {
+      height: 20px;
+      background: linear-gradient(135deg, #00c9ff, #92fe9d);
+      width: 0%;
+      border-radius: 10px;
+      transition: width 0.3s;
+      position: relative;
+    }
+    #progressMan {
+      position: absolute;
+      top: -12px;
+      font-size: 24px;
+      transition: left 0.3s;
+    }
+
+    /* ====== ФЕЙЕРВЕРК ====== */
+    #firework {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      pointer-events: none;
+      display: none;
+      background: rgba(0,0,0,0.4);
+      animation: fadeOut 2s forwards;
+      z-index: 10000;
+    }
+    @keyframes fadeOut {
+      from { opacity: 1; }
+      to   { opacity: 0; }
+    }
+    .firework-text {
+      color: #fff;
+      font-size: 50px;
+      font-weight: bold;
+      text-align: center;
+      margin-top: 20%;
+    }
+  </style>
+</head>
+<body>
+  <!-- NAVBAR -->
+  <div class="navbar">
+    <a href="{{ url_for('index') }}" class="btn main-btn">Main</a>
+    <a href="/pichide" class="btn hide-btn">Image Hide</a>
+    <a href="/coding" class="btn coding-btn">Coding</a>
+    <a href="/account" class="btn account-btn">My Personal Account</a>
+    <form method="post" action="/auth/logout" style="display:inline; margin-left:10px;">
+      <button class="btn" style="background: linear-gradient(135deg, #fa709a, #f94144); border:none;">Log out</button>
+    </form>
+  </div>
+
+  <div class="container">
+    <h1>Multiple Choice Quiz из Word</h1>
+
+    <!-- ФОРМА ДЛЯ СОЗДАНИЯ КВИЗА -->
+    <form class="quiz-form" method="post" enctype="multipart/form-data">
+      <label for="word_file">Загрузите Word-файл (.doc или .docx):</label><br>
+      <input type="file" name="word_file" id="word_file" accept=".doc,.docx"><br>
+      <p>ИЛИ</p>
+      <textarea name="input_text" placeholder="Вставьте сюда текст с вопросами (формат, как в Word)"></textarea><br>
+      <button type="submit">Создать квиз</button>
+    </form>
+
+    <!-- БЛОК С ВОПРОСАМИ -->
+    <div id="quizContainer">
+      {% for question_html in quiz_questions %}
+        <div class="quiz-question">
+          {{ question_html|safe }}
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- ПРОГРЕСС-БАР -->
+  <div id="progressContainer">
+    <div id="progressBar">
+      <div id="progressMan">🏃</div>
+    </div>
+  </div>
+  <!-- ФЕЙЕРВЕРК -->
+  <div id="firework">
+    <div class="firework-text">🎉 CONGRATS! 🎉</div>
+  </div>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", function() {
+      // Ищем все варианты ответов
+      document.querySelectorAll(".mc-option-row").forEach(row => {
+        row.addEventListener("click", function(e) {
+          // Считываем правильный ответ
+          let correct = row.getAttribute("data-correct")?.trim().toLowerCase();
+          // Считываем текст ответа (из label)
+          let text = row.querySelector(".mc-option-label")?.textContent.trim().toLowerCase() || "";
+          // Ставим радио-кнопку в checked
+          let radio = row.querySelector("input[type='radio']");
+          if(radio) radio.checked = true;
+
+          // Если этот вариант совпадает с correct => correct-row, иначе => incorrect-row
+          if(text === correct) {
+            row.classList.add("correct-row");
+          } else {
+            row.classList.add("incorrect-row");
+          }
+          updateProgress();
+        });
+      });
+
+      createProgress();
+      updateProgress();
+
+      function createProgress(){
+        // Уже есть #progressContainer и #progressBar в HTML
+      }
+
+      function updateProgress(){
+        let questions = document.querySelectorAll(".quiz-question");
+        let total = questions.length;
+        let answered = 0;
+
+        questions.forEach(q => {
+          // Для вопроса считаем, ответил ли пользователь правильно (хотя бы один вариант с классом correct-row)
+          let isCorrect = false;
+          q.querySelectorAll(".mc-option-row").forEach(r => {
+            if(r.classList.contains("correct-row")) {
+              isCorrect = true;
+            }
+          });
+          if(isCorrect) answered++;
+        });
+
+        let pct = total ? Math.floor((answered / total) * 100) : 0;
+        let bar = document.getElementById("progressBar");
+        let man = document.getElementById("progressMan");
+        bar.style.width = pct + "%";
+        man.style.left = pct + "%";
+        if(pct >= 100) {
+          showFirework();
+        }
+      }
+
+      function showFirework(){
+        let fw = document.getElementById("firework");
+        fw.style.display = "block";
+        setTimeout(() => { fw.style.display = "none"; }, 2500);
+      }
+    });
+  </script>
+</body>
+</html>

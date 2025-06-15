@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Random Letter Removal</title>
+
+  <style>
+    /* --- Общий фон (как в quizz): мягкий розово-фиолетовый градиент --- */
+    body {
+      margin: 0;
+      padding: 20px;
+      background: linear-gradient(to bottom, #fbc2eb, #a6c1ee);
+      font-family: "Helvetica Neue", Arial, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+    }
+
+    h2 {
+      text-align: center;
+      margin-top: 10px;
+    }
+
+    /* Контейнер */
+    .container {
+      background: #fff;
+      border-radius: 15px;
+      padding: 20px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+      width: 90%;
+      max-width: 600px;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    .container:hover {
+      transform: scale(1.01);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+    }
+
+    /* Навбар */
+    .navbar {
+      width: 100%;
+      max-width: 1000px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    .navbar-left, .navbar-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .user-info {
+      font-size: 16px;
+      color: #444;
+    }
+    .logout-form {
+      display: inline;
+    }
+    .logout-btn {
+      color: #fff !important;
+      background: linear-gradient(135deg, #fa709a, #f94144);
+      text-decoration: none;
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 16px;
+      transition: 0.3s;
+      border: none;
+      cursor: pointer;
+    }
+    .logout-btn:hover {
+      opacity: 0.85;
+      transform: scale(1.05);
+    }
+    .nav-btn {
+      text-decoration: none;
+      padding: 8px 14px;
+      border-radius: 8px;
+      color: white;
+      font-size: 16px;
+      transition: 0.3s;
+      font-weight: bold;
+      box-shadow: 0 3px 8px rgba(0,0,0,0.2);
+    }
+    .nav-btn:hover {
+      opacity: 0.8;
+      transform: scale(1.05);
+      box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    }
+    .quiz-btn     { background-color: #ff9800; }
+    .coding-btn   { background-color: #2196F3; }
+    .hide-btn     { background-color: #6c757d; }
+    .account-btn  { 
+      background-color: #ff69b4; 
+      display: inline-flex; 
+      align-items: center; 
+      gap: 6px;
+    }
+    .account-btn::before {
+      content: "👤";
+      font-size: 18px;
+    }
+    /* (Ранее была .mc-quiz-btn - УДАЛЯЕМ/МЕНЯЕМ на dropdown) */
+
+
+    /* Режим fill */
+    body.fill-mode .fill-input {
+      background-color: #fffceb;
+    }
+    .fill-input {
+      width: 2ch;
+      text-align: center;
+      margin: 2px;
+      border: 2px solid lightpink;
+      border-radius: 5px;
+      transition: background 0.3s, transform 0.2s;
+      font-size: 14px;
+    }
+    .fill-input:focus {
+      transform: scale(1.1);
+    }
+    .correct {
+      animation: pop 0.4s ease-in-out;
+    }
+    @keyframes pop {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.2); }
+      100% { transform: scale(1); }
+    }
+    .incorrect {
+      animation: shake 0.4s ease-in-out;
+    }
+    @keyframes shake {
+      0% { transform: translateX(0); }
+      25% { transform: translateX(-5px); }
+      50% { transform: translateX(5px); }
+      75% { transform: translateX(-5px); }
+      100% { transform: translateX(0); }
+    }
+
+    .output-container {
+      margin-top: 15px;
+      background: #fefefe;
+      border: 1px solid #ddd;
+      padding: 10px;
+      border-radius: 8px;
+      overflow: auto;
+    }
+    .word {
+      display: inline-block;
+      margin: 3px;
+      padding: 5px 8px;
+      background: #ffeef2;
+      border: 1px solid #ffb6c1;
+      border-radius: 6px;
+      transition: background 0.3s;
+    }
+    .word:hover {
+      background: #ffd6dc;
+    }
+
+    #hidden_percentage_container {
+      display: none;
+    }
+    #editor {
+      width: 100%;
+      min-height: 80px;
+      border: 2px dashed #ccc;
+      border-radius: 8px;
+      padding: 10px;
+      margin-bottom: 10px;
+      outline: none;
+      font-size: 14px;
+      color: #333;
+      transition: border 0.3s ease;
+    }
+    #editor:focus {
+      border-color: #66afe9;
+    }
+    .process-btn {
+      background: linear-gradient(135deg, #00c9ff, #92fe9d);
+      border: none;
+      color: #333;
+      padding: 8px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: transform 0.3s, box-shadow 0.3s;
+      font-size: 15px;
+      font-weight: bold;
+      margin-top: 8px;
+    }
+    .process-btn:hover {
+      transform: scale(1.03);
+      box-shadow: 0 3px 10px rgba(0,0,0,0.15);
+    }
+
+    /* Прогресс + человечек (как в quizz) */
+    #progressContainer {
+      position: fixed;
+      right: 20px;
+      bottom: 20px;
+      width: 200px;
+      height: 30px;
+      background: #eee;
+      border-radius: 15px;
+      overflow: hidden;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      padding: 0 5px;
+      box-sizing: border-box;
+      transition: all 0.3s;
+    }
+    #progressBar {
+      height: 20px;
+      background: linear-gradient(135deg, #00c9ff, #92fe9d);
+      width: 0%;
+      border-radius: 10px;
+      transition: width 0.3s;
+      position: relative;
+    }
+    #progressMan {
+      position: absolute;
+      top: -12px;
+      font-size: 24px;
+      transition: left 0.3s;
+    }
+
+    /* Фейерверк */
+    #firework {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      pointer-events: none;
+      display: none;
+      background: rgba(0,0,0,0.4);
+      animation: fadeOut 2s forwards;
+      z-index: 10000;
+    }
+    @keyframes fadeOut {
+      0%   {opacity: 1;}
+      100% {opacity: 0;}
+    }
+    .firework-text {
+      color: #fff;
+      font-size: 50px;
+      font-weight: bold;
+      text-align: center;
+      margin-top: 20%;
+    }
+
+    /* ============ Добавляем стили dropdown для кнопки Additional ============ */
+    .dropdown-additional {
+      position: relative;
+      display: inline-block; /* чтобы работал hover */
+    }
+    .additional-btn {
+      /* Стилизуем как nav-btn */
+      background-color: #4caf50;
+      color: #fff;
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: bold;
+      box-shadow: 0 3px 8px rgba(0,0,0,0.2);
+      text-decoration: none;
+      transition: all 0.3s ease;
+      border: none;
+      cursor: pointer;
+    }
+    .additional-btn:hover {
+      transform: scale(1.08);
+      box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+    }
+    .dropdown-content {
+      position: absolute;
+      top: 110%;
+      left: 0;
+      display: none;
+      background-color: #fff;
+      min-width: 140px;
+      border-radius: 8px;
+      box-shadow: 0 3px 8px rgba(0,0,0,0.2);
+      z-index: 9999;
+      animation: fade-in 0.3s ease;
+    }
+    @keyframes fade-in {
+      from {opacity: 0; transform: translateY(10px);}
+      to   {opacity: 1; transform: translateY(0);}
+    }
+    .dropdown-additional:hover .dropdown-content {
+      display: block;
+    }
+    .dropdown-content a {
+      color: #333;
+      padding: 8px 12px;
+      text-decoration: none;
+      display: block;
+      transition: background 0.2s;
+    }
+    .dropdown-content a:hover {
+      background: #f0f0f0;
+    }
+
+  </style>
+
+  <script>
+  function onFormSubmit(){
+    let html = document.getElementById('editor').innerHTML;
+    document.getElementById('hidden_input').value = html;
+  }
+
+  function showFirework(){
+    let fw = document.getElementById("firework");
+    fw.style.display = 'block';
+    setTimeout(() => { fw.style.display = 'none'; }, 2500);
+  }
+
+  document.addEventListener("DOMContentLoaded", function(){
+    function toggleHiddenPercentage(){
+      let cont = document.getElementById("hidden_percentage_container");
+      let modeVal = document.querySelector('input[name="mode"]:checked')?.value;
+      if(!modeVal) return;
+      cont.style.display = (modeVal === "fill") ? "inline-block" : "none";
+    }
+    function updateBodyClass(){
+      let modeVal = document.querySelector('input[name="mode"]:checked')?.value;
+      document.body.classList.toggle("fill-mode", (modeVal === "fill"));
+    }
+
+    toggleHiddenPercentage();
+    updateBodyClass();
+
+    document.querySelectorAll('input[name="mode"]').forEach(radio => {
+      radio.addEventListener("change", () => {
+        toggleHiddenPercentage();
+        updateBodyClass();
+      });
+    });
+
+    // Создадим прогресс + человечек
+    createProgressBar();
+    updateProgress();
+
+    // Логика fill-input
+    let fillInputs = document.querySelectorAll(".fill-input");
+    fillInputs.forEach((input, index, allInputs) => {
+      input.addEventListener("input", function(){
+        let corrVal = this.dataset.correct.trim().toLowerCase();
+        let typedVal = this.value.trim().toLowerCase();
+        if(typedVal === corrVal){
+          input.classList.add("correct");
+          input.classList.remove("incorrect");
+          input.style.backgroundColor = 'lightgreen';
+          input.readOnly = true;
+          let i2 = index + 1;
+          while(i2 < allInputs.length){
+            if(!allInputs[i2].classList.contains("correct")){
+              allInputs[i2].focus();
+              break;
+            }
+            i2++;
+          }
+        } else {
+          input.classList.remove("correct");
+          input.classList.add("incorrect");
+          input.style.backgroundColor = 'lightcoral';
+        }
+        updateProgress();
+      });
+      input.addEventListener("focus", function(){
+        if(!this.classList.contains("correct")){
+          this.value = "";
+        }
+      });
+      input.addEventListener("keydown", function(e){
+        if(e.key.length === 1 && this.value.length >= 1){
+          e.preventDefault();
+          this.value = e.key;
+          this.setSelectionRange(1, 1);
+        }
+      });
+    });
+
+    function createProgressBar(){
+      let pc = document.createElement("div");
+      pc.id = "progressContainer";
+
+      let pb = document.createElement("div");
+      pb.id = "progressBar";
+
+      let pm = document.createElement("div");
+      pm.id = "progressMan";
+      pm.textContent = "🏃";
+
+      pb.appendChild(pm);
+      pc.appendChild(pb);
+      document.body.appendChild(pc);
+
+      let fw = document.createElement("div");
+      fw.id = "firework";
+      let txt = document.createElement("div");
+      txt.classList.add("firework-text");
+      txt.textContent = "🎉 CONGRATS! 🎉";
+      fw.appendChild(txt);
+      document.body.appendChild(fw);
+    }
+
+    function updateProgress(){
+      let total = 0, correct = 0;
+      let fi = document.querySelectorAll(".fill-input");
+      fi.forEach(inp => {
+        total++;
+        if(inp.classList.contains("correct")){
+          correct++;
+        }
+      });
+      let pct = 0;
+      if(total > 0){
+        pct = Math.floor((correct / total) * 100);
+      }
+      let pBar = document.getElementById("progressBar");
+      let pMan = document.getElementById("progressMan");
+      if(pBar){
+        pBar.style.width = pct + "%";
+        pMan.style.left = pct + "%";
+      }
+      if(pct >= 100){
+        showFirework();
+      }
+    }
+  });
+  </script>
+</head>
+<body>
+  <!-- Navbar -->
+  <div class="navbar">
+    <div class="navbar-left">
+      {% if session.get('user_id') %}
+        <span class="user-info">Logged in as: <strong>{{ session['user_id'] }}</strong></span>
+        <form action="/auth/logout" method="post" class="logout-form">
+          <button class="logout-btn">Log out</button>
+        </form>
+      {% else %}
+        <span class="user-info">You are Guest:</span>
+        <a href="/auth/login">Login</a> /
+        <a href="/auth/register">Register</a>
+      {% endif %}
+    </div>
+    <div class="navbar-right">
+      <a class="nav-btn quiz-btn" href="{{ url_for('quizz.quizz') }}">Quizz</a>
+      <a class="nav-btn coding-btn" href="{{ url_for('coding.coding') }}">Coding</a>
+      <a class="nav-btn hide-btn" href="/pichide">Image Hide</a>
+      <a href="{{ url_for('account_bp.account') }}" class="nav-btn account-btn">My Personal Account</a>
+
+      <!-- ВМЕСТО кнопки MC Quiz Word теперь dropdown Additional: -->
+      <div class="dropdown-additional">
+        <button class="additional-btn">Additional</button>
+        <div class="dropdown-content">
+          <a href="/mc_quiz_word">Multiple choice</a>
+          <a href="/matching">Matching</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h2>Your text</h2>
+
+  <div class="container">
+    <form method="post" onsubmit="onFormSubmit()">
+      <div id="editor" contenteditable="true">{{ editor_initial|safe }}</div>
+      <input type="hidden" name="input_text" id="hidden_input">
+      <label style="margin-right: 10px;">
+        <input type="radio" name="mode" value="remove"
+               {% if mode=='remove' %}checked{% endif %}>
+        Remove Letters
+      </label>
+      <label>
+        <input type="radio" name="mode" value="fill"
+               {% if mode=='fill' %}checked{% endif %}>
+        Fill in the Blanks
+      </label>
+      <br>
+      <div id="hidden_percentage_container" style="margin-top:6px;">
+        <label for="hidden_percentage">Hidden letters (%):</label>
+        <select name="hidden_percentage" id="hidden_percentage">
+          {% for p in [10,20,30,40,50,60,70,80,90,100] %}
+          <option value="{{p}}" {% if hidden_percentage==p %}selected{% endif %}>{{p}}%</option>
+          {% endfor %}
+        </select>
+      </div>
+      <br>
+      <button type="submit" class="process-btn">Process</button>
+    </form>
+
+    {% if output_html %}
+      <h3 style="margin-top: 20px;">Output:</h3>
+      <div class="output-container">
+        {{ output_html|safe }}
+      </div>
+    {% endif %}
+  </div>
+</body>
+</html>

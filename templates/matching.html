@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Matching Multiple Blocks</title>
+  <style>
+    /* Нежная градиентная заливка */
+    body {
+      margin: 0;
+      padding: 20px;
+      font-family: Arial, sans-serif;
+      background: linear-gradient(to bottom, #fbc2eb, #a6c1ee);
+      min-height: 100vh;
+    }
+
+    /* Navbar */
+    .navbar {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .btn {
+      color: #fff;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+      text-decoration: none;
+      transition: transform 0.3s, box-shadow 0.3s;
+      font-weight: bold;
+      box-shadow: 0 3px 8px rgba(0,0,0,0.2);
+    }
+    .btn:hover {
+      transform: scale(1.05);
+      box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+    }
+    .main-btn    { background-color: #ff69b4; }
+    .hide-btn    { background-color: #6c757d; }
+    .coding-btn  { background-color: #2196F3; }
+    .account-btn {
+      background-color: #ff69b4;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      text-decoration: none;
+    }
+    .account-btn::before {
+      content: "👤";
+      font-size: 18px;
+    }
+
+    /* Контейнер */
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      background: #fff;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    h1 {
+      margin-top: 0;
+      font-weight: bold;
+      text-align: center;
+      color: #333;
+    }
+
+    .error-message {
+      background: #ffd2d2;
+      color: #b00;
+      padding: 10px 14px;
+      border-radius: 8px;
+      margin-bottom: 12px;
+      font-weight: bold;
+    }
+
+    /* Заголовок блока: нежный фон, цветная полоска */
+    .block-title {
+      margin: 18px 0 8px;
+      font-weight: bold;
+      color: #444;
+      font-size: 20px;
+      background: #fce4ec;  /* Нежный розовый фон */
+      border-left: 6px solid #ec407a; /* тонкая полоска слева */
+      padding: 8px 12px;
+      border-radius: 8px;
+    }
+
+    .row-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 8px 0;
+      background: #fafafa;
+      padding: 10px;
+      border-radius: 8px;
+      transition: background 0.3s;
+    }
+    .row-item.correct {
+      background: #c8f7c5; /* зелёный */
+    }
+    .row-item.incorrect {
+      background: #f9c0c0; /* красный */
+    }
+    .left-term {
+      background: #f0f0f0;
+      padding: 6px 10px;
+      border-radius: 20px;
+      font-weight: bold;
+    }
+    .arrow {
+      font-size: 18px;
+      color: #666;
+    }
+    select.match-select {
+      border: 1px solid #ccc;
+      border-radius: 20px;
+      padding: 6px 8px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    /* Прогресс-бар (бегущий человечек) */
+    #progressContainer {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      width: 220px;
+      height: 30px;
+      background: #eee;
+      border-radius: 15px;
+      overflow: hidden;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+      display: flex;
+      align-items: center;
+      padding: 0 5px;
+      box-sizing: border-box;
+    }
+    #progressBar {
+      height: 20px;
+      background: linear-gradient(135deg, #00c9ff, #92fe9d);
+      width: 0%;
+      border-radius: 10px;
+      transition: width 0.3s;
+      position: relative;
+    }
+    #progressMan {
+      position: absolute;
+      top: -12px;
+      font-size: 24px;
+      transition: left 0.3s;
+    }
+
+    /* Фейерверк */
+    #firework {
+      position: fixed;
+      top: 0; 
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: none;
+      background: rgba(0,0,0,0.5);
+      justify-content: center;
+      align-items: center;
+      color: #fff;
+      font-size: 48px;
+      z-index: 9999;
+      animation: fadeOut 2s forwards;
+    }
+    @keyframes fadeOut {
+      from {opacity: 1;}
+      to   {opacity: 0;}
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Navbar -->
+  <div class="navbar">
+    <a href="/" class="btn main-btn">Main</a>
+    <a href="/pichide" class="btn hide-btn">Image Hide</a>
+    <a href="/coding" class="btn coding-btn">Coding</a>
+    <a href="/account" class="btn account-btn">My Personal Account</a>
+  </div>
+
+  <div class="container">
+    <h1>Matching Multiple Blocks</h1>
+
+    {% if error_message %}
+      <div class="error-message">{{ error_message }}</div>
+    {% endif %}
+
+    <form method="post" enctype="multipart/form-data" style="margin-bottom:20px;">
+      <label>Upload Word (.docx) or paste text (blocks with "↔"):</label><br>
+      <input type="file" name="word_file" accept=".doc,.docx"><br><br>
+      <textarea name="input_text" rows="5" style="width:100%;"></textarea><br>
+      <button style="margin-top:8px; padding:10px 16px; background:linear-gradient(135deg,#98f9b2,#92fe9d); border:none; border-radius:8px; cursor:pointer;">
+        Create Matching
+      </button>
+    </form>
+
+    {% if not blocks %}
+      <p style="color:#777; font-weight:bold;">No matching lines found.</p>
+    {% else %}
+      {% for block in blocks %}
+        <h3 class="block-title">{{ block.title }}</h3>
+        {% if not block.rows %}
+          <p style="color:#999; margin:4px 0;">(No pairs in this block)</p>
+        {% else %}
+          {% for row in block.rows %}
+            <div class="row-item" data-correct="{{ row.correct|trim|lower }}">
+              <div class="left-term">{{ row.left }}</div>
+              <div class="arrow">↔</div>
+              <select class="match-select">
+                <option value="">-- Select --</option>
+                {% for opt in row.options %}
+                  <option value="{{ opt|trim|lower }}">{{ opt }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          {% endfor %}
+        {% endif %}
+      {% endfor %}
+    {% endif %}
+  </div>
+
+  <!-- Прогресс -->
+  <div id="progressContainer">
+    <div id="progressBar">
+      <div id="progressMan">🏃</div>
+    </div>
+  </div>
+
+  <!-- Фейерверк -->
+  <div id="firework">
+    🎉 CONGRATS! 🎉
+  </div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function(){
+  let rowItems = document.querySelectorAll(".row-item");
+  let total = rowItems.length;
+
+  rowItems.forEach(r=>{
+    let correctVal = r.dataset.correct;
+    let sel = r.querySelector("select.match-select");
+    if(!sel) return;
+    sel.addEventListener("change", function(){
+      let val = sel.value.trim().toLowerCase();
+      if(val === correctVal){
+        r.classList.remove("incorrect");
+        r.classList.add("correct");
+      } else {
+        r.classList.remove("correct");
+        r.classList.add("incorrect");
+      }
+      updateProgress();
+    });
+  });
+
+  function updateProgress(){
+    let correctCount=0;
+    rowItems.forEach(r=>{
+      if(r.classList.contains("correct")){
+        correctCount++;
+      }
+    });
+    let pct = total ? Math.floor((correctCount/total)*100) : 0;
+    let bar = document.getElementById("progressBar");
+    let man = document.getElementById("progressMan");
+    bar.style.width = pct + "%";
+    man.style.left = pct + "%";
+    if(pct>=100 && total>0){
+      showFirework();
+    }
+  }
+
+  function showFirework(){
+    let fw = document.getElementById("firework");
+    fw.style.display='flex';
+    setTimeout(()=>{ fw.style.display='none'; }, 2000);
+  }
+});
+</script>
+</body>
+</html>

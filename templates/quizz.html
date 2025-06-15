@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Quizz</title>
+  <style>
+    /* ====== Фон, как в import_random: нежный розово-фиолетовый ====== */
+    body {
+      background: linear-gradient(to bottom, #fbc2eb, #a6c1ee);
+      margin: 0;
+      padding: 20px;
+      font-family: Arial, sans-serif;
+      min-height: 100vh;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    /* ====== NAVBAR ====== */
+    .navbar {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .btn {
+      color: #fff;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+      text-decoration: none;
+      transition: transform 0.3s, box-shadow 0.3s;
+      font-weight: bold;
+      box-shadow: 0 3px 8px rgba(0,0,0,0.2);
+    }
+    .btn:hover {
+      transform: scale(1.05);
+      box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    }
+    .main-btn {
+      background-color: #ff69b4;
+    }
+    .hide-btn {
+      background-color: #6c757d;
+    }
+    .coding-btn {
+      background-color: #2196F3;
+    }
+    .account-btn {
+      background-color: #ff69b4; 
+      display: inline-flex; 
+      align-items: center; 
+      gap: 6px;
+      text-decoration: none;
+    }
+    .account-btn::before {
+      content: "👤";
+      font-size: 18px;
+    }
+
+    /* ====== CONTAINER ====== */
+    .container {
+      background: white;
+      border-radius: 10px;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      position: relative;
+    }
+    #editor {
+      width: 100%;
+      min-height: 100px;
+      border: 2px dashed #ccc;
+      border-radius: 8px;
+      padding: 10px;
+      margin-bottom: 10px;
+      outline: none;
+      white-space: pre-wrap;
+      font-family: monospace;
+    }
+
+    .form-row {
+      margin: 8px 0;
+    }
+    select {
+      margin: 5px;
+      padding: 6px 10px;
+      font-size: 14px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+
+    /* ====== OUTPUT ====== */
+    .output-container {
+      background: #fafafa;
+      border: 1px solid #ddd;
+      padding: 15px;
+      border-radius: 8px;
+      margin-top: 15px;
+      overflow: auto; 
+      white-space: pre-wrap;
+      font-family: monospace;
+    }
+    #quizResult {
+      margin-top: 10px;
+    }
+
+    /* ====== MC-GAP ====== */
+    .mc-gap {
+      color: #ff69b4; 
+      background-color: transparent; 
+      border-bottom: 2px dashed #ff69b4; 
+      cursor: pointer; 
+      display: inline-block;
+      margin: 2px;
+    }
+    .mc-popup {
+      position: absolute;
+      background: #fff;
+      border: 2px solid #666;
+      border-radius: 8px;
+      padding: 8px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+      z-index: 9999;
+      display: none;
+    }
+    .mc-option-btn {
+      display: block;
+      background: #2196F3;
+      color: #fff;
+      padding: 6px 10px;
+      margin: 4px 0;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      cursor: pointer;
+      text-align: left;
+    }
+    .mc-option-btn:hover {
+      background: #1976d2;
+    }
+
+    /* ====== fill-input ====== */
+    .fill-input {
+      font-size: 16px;
+      border: 2px solid #ccc;
+      border-radius: 4px;
+      margin: 2px;
+      padding: 4px 8px;
+      text-align: center;
+      vertical-align: middle;
+      display: inline-block;
+    }
+    .fill-input.correct {
+      background-color: lightgreen !important;
+    }
+    .fill-input.incorrect {
+      background-color: lightcoral !important;
+    }
+
+    /* ====== hidden-word ====== */
+    .hidden-word {
+      border: 2px solid #ff69b4;
+      border-radius: 6px;
+      background-color: #ff69b4;
+      color: white;
+      cursor: pointer;
+      margin: 2px;
+      display: inline-block;
+      vertical-align: middle;
+      text-align: center;
+      overflow: hidden;
+      padding: 6px 10px;
+      font-size: 16px;
+      transition: transform 0.2s;
+    }
+    .hidden-word:hover {
+      transform: scale(1.06);
+    }
+    .hidden-word.opened {
+      background-color: #f0f0f0;
+      color: black;
+      border-color: #ccc;
+    }
+
+    .save-btn {
+      background: #4caf50;
+      margin-top: 10px;
+    }
+
+    /* ===== ПРОГРЕСС-БАР ===== */
+    #progressContainer {
+      position: fixed;
+      right: 20px;
+      bottom: 20px;
+      width: 200px;
+      height: 30px;
+      background: #eee;
+      border-radius: 15px;
+      overflow: hidden;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      padding: 0 5px;
+      box-sizing: border-box;
+      transition: all 0.3s;
+    }
+    #progressBar {
+      height: 20px;
+      background: linear-gradient(135deg, #00c9ff, #92fe9d);
+      width: 0%;
+      border-radius: 10px;
+      transition: width 0.3s;
+      position: relative;
+    }
+    #progressMan {
+      position: absolute;
+      top: -12px;
+      font-size: 24px;
+      transition: left 0.3s;
+    }
+
+    /* Фейерверк */
+    #firework {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      pointer-events: none;
+      display: none; 
+      background: rgba(0,0,0,0.4);
+      animation: fadeOut 2s forwards;
+      z-index: 10000;
+    }
+    @keyframes fadeOut {
+      0%   {opacity: 1;}
+      100% {opacity: 0;}
+    }
+    .firework-text {
+      color: #fff;
+      font-size: 50px;
+      font-weight: bold;
+      text-align: center;
+      margin-top: 20%;
+    }
+
+    /* анимация попап */
+    @keyframes fadePop {
+      0% { opacity: 0; transform: translateY(10px); }
+      20% { opacity: 1; transform: translateY(0); }
+      80% { opacity: 1; }
+      100% { opacity: 0; transform: translateY(-10px); }
+    }
+
+    /* REVIEW MODAL */
+    .review-modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.5);
+      align-items: center;
+      justify-content: center;
+      z-index: 99999;
+    }
+    .review-modal.open {
+      display: flex;
+    }
+    .review-content {
+      background: #fff;
+      width: 90%;
+      max-width: 500px;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.2);
+      text-align: center;
+    }
+    .review-content h3 {
+      margin-top: 0;
+    }
+    .review-fill {
+      background: pink;
+      border: 2px solid #ccc;
+      border-radius: 4px;
+      font-size: 14px;
+      padding: 2px 6px;
+      margin-left: 5px;
+      margin-right: 5px;
+    }
+    .review-fill.correct {
+      background: lightgreen !important;
+    }
+    .review-fill.incorrect {
+      background: lightcoral !important;
+    }
+    .review-btn {
+      margin: 10px 5px 0;
+      background: linear-gradient(135deg, #ff69b4, #f94144);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 15px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    .review-btn:hover {
+      transform: scale(1.05);
+    }
+
+    /* ==================== GAMING SIDEBAR ==================== */
+    .sidebar-gaming {
+      position: fixed;
+      top: 100px;
+      right: 20px;
+      width: 220px;
+      background: rgba(0,0,0,0.6);
+      color: #fff;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+      z-index: 99998;
+      transition: 0.3s;
+      font-size: 14px;
+    }
+    .sidebar-gaming:hover {
+      background: rgba(0,0,0,0.8);
+    }
+    .sidebar-gaming p {
+      margin: 6px 0;
+    }
+  </style>
+
+  <script>
+    // ====== Геймерская панель (время ответа) ======
+    let answerTimes=[];
+    let lastAnswerTime=0;
+    let questionStartTime=Date.now();
+    function updateAnswerTime(){
+      let now=Date.now();
+      lastAnswerTime=((now-questionStartTime)/1000).toFixed(1);
+      questionStartTime=now;
+      answerTimes.push(parseFloat(lastAnswerTime));
+    }
+    function getAverageTime(){
+      if(!answerTimes.length) return 0;
+      let s=0; answerTimes.forEach(t=>s+=t);
+      return (s/answerTimes.length).toFixed(1);
+    }
+    function updateSidebar(pct,correct,total){
+      let avg=getAverageTime();
+      let el=document.getElementById('gamingSidebar');
+      if(!el) return;
+      el.innerHTML=`
+        <p><strong>Score:</strong> ${correct}/${total} (${pct}%)</p>
+        <p><strong>Last time:</strong> ${lastAnswerTime}s</p>
+        <p><strong>Avg time:</strong> ${avg}s</p>
+      `;
+    }
+
+    // ====== Ачивки/комбо ======
+    let comboCount=0;
+    let correctStreak=0;
+    let comboStartTime=null;
+    let achievements=JSON.parse(sessionStorage.getItem('achievements')||'{}');
+
+    function showRewardPopup(txt){
+      let popup=document.createElement('div');
+      popup.textContent=txt;
+      popup.style.cssText=`
+        position: fixed; bottom:80px; right:20px; background:#ffeb3b; padding:12px 20px;
+        border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.2); font-size:18px; font-weight:bold;
+        z-index:9999; animation: fadePop 2s ease-out forwards;
+      `;
+      document.body.appendChild(popup);
+      setTimeout(()=>popup.remove(),3000);
+    }
+
+    // ====== Храним только отдельное предложение (не весь параграф). ======
+    // correctAnswers: массив объектов { sentence: "...", removed: "..." }
+    let correctAnswers=[];
+    let milestones=[10,20,30,40,50,60,70,80,90];
+    let reachedMilestones={};
+
+    function onCorrectAnswer(parentText, missingWord){
+      updateAnswerTime();
+
+      // Разбиваем parentText на предложения по символам ".", "!", "?"
+      // Пытаемся найти предложение, содержащее missingWord
+      let sents = parentText.split(/([.!?]+)/); 
+      // sents теперь типа ["Blabla", ".", " Next sentence", ".", "Another", "!", ...]
+      // Нужно собрать их обратно в предложения
+      let realSents = [];
+      for(let i=0;i<sents.length;i+=2){
+        let sentence = sents[i].trim();
+        let punctuation = (i+1 < sents.length)? sents[i+1]:"";
+        let fullSentence = (sentence+punctuation).trim();
+        if(fullSentence) realSents.push(fullSentence);
+      }
+
+      // Ищем то, где есть missingWord
+      let foundSent = realSents.find(sn=> new RegExp("\\b"+missingWord+"\\b", "i").test(sn));
+      if(!foundSent) foundSent = parentText.trim(); // fallback
+
+      // Сохраняем
+      if(!achievements['first_correct']){
+        achievements['first_correct']=true;
+        sessionStorage.setItem('achievements', JSON.stringify(achievements));
+        showRewardPopup('💡 Первый успех!');
+      }
+
+      correctAnswers.push({ sentence: foundSent, removed: missingWord });
+
+      if(!comboStartTime) comboStartTime=Date.now();
+      correctStreak++;
+      comboCount++;
+      if(comboCount===3){
+        let elapsed=Date.now()-comboStartTime;
+        if(elapsed<=30000){
+          showRewardPopup('⏳ 3 задания за 30 сек! +1 суперпопытка');
+          sessionStorage.setItem('super_attempt','1');
+        }
+      }
+      if(correctStreak===5){
+        showRewardPopup('🔥 5 подряд! x2 XP');
+      }
+      if(correctStreak===10 && !achievements['ten_correct']){
+        achievements['ten_correct']=true;
+        sessionStorage.setItem('achievements', JSON.stringify(achievements));
+        showRewardPopup('🎖 10 правильных подряд!');
+      }
+    }
+    function onWrongAnswer(){
+      updateAnswerTime();
+      correctStreak=0;
+      comboCount=0;
+      comboStartTime=null;
+    }
+
+    function openReviewModal(){
+      // берём 3 случайные
+      let arr=[...correctAnswers];
+      shuffleArray(arr);
+      let picked=arr.slice(0,3);
+
+      let cont=document.getElementById('reviewContent');
+      cont.innerHTML='<h3>Повторяем ответы (одно слово пропущено):</h3>';
+      picked.forEach(obj=>{
+        let wrap=document.createElement('div');
+        wrap.style.marginBottom='12px';
+        wrap.innerHTML=buildReviewLine(obj.sentence, obj.removed);
+        cont.appendChild(wrap);
+      });
+      document.getElementById('reviewModal').classList.add('open');
+
+      // При вводе -> зелёный при правильном
+      cont.querySelectorAll(".review-fill").forEach(inp=>{
+        inp.addEventListener("input",function(){
+          let corr=this.getAttribute("data-correct")||"";
+          let typed=this.value.trim();
+          if(typed.toLowerCase()===corr.toLowerCase()){
+            this.classList.remove("incorrect");
+            this.classList.add("correct");
+            this.style.backgroundColor="lightgreen";
+          } else {
+            this.classList.remove("correct");
+            if(typed){
+              this.classList.add("incorrect");
+              this.style.backgroundColor="lightcoral";
+            } else {
+              this.classList.remove("incorrect");
+              this.style.backgroundColor="pink";
+            }
+          }
+        });
+      });
+    }
+    function buildReviewLine(sentence, missingWord){
+      let regex=new RegExp("\\b"+missingWord+"\\b","i");
+      return sentence.replace(regex,
+        `??? <input type="text" class="review-fill" data-correct="${missingWord}">`
+      );
+    }
+    function closeReviewModal(){
+      document.getElementById('reviewModal').classList.remove('open');
+    }
+    function getMoreReviews(){
+      openReviewModal();
+    }
+    function shuffleArray(arr){
+      for(let i=arr.length-1;i>0;i--){
+        let j=Math.floor(Math.random()*(i+1));
+        [arr[i],arr[j]]=[arr[j],arr[i]];
+      }
+    }
+  </script>
+</head>
+<body>
+
+  <!-- NAVBAR -->
+  <div class="navbar">
+    <a href="{{ url_for('index') }}" class="btn main-btn">Main</a>
+    <a href="/pichide" class="btn hide-btn">Image Hide</a>
+    <a href="/coding" class="btn coding-btn">Coding</a>
+    <a href="/account" class="btn account-btn">My Personal Account</a>
+    <!-- Logout (POST) -->
+    <form method="post" action="/auth/logout" style="display:inline; margin-left:10px;">
+      <button class="btn" style="background: linear-gradient(135deg, #fa709a, #f94144); border:none;">Log out</button>
+    </form>
+  </div>
+
+  <!-- Геймерская панель справа -->
+  <div class="sidebar-gaming" id="gamingSidebar">
+    <p>Loading...</p>
+  </div>
+
+  <div class="container">
+    <h1>Quizz</h1>
+    <!-- Форма "Create Quiz" -->
+    <form method="post" onsubmit="onFormSubmit()">
+      <div id="editor" contenteditable="true">{{ editor_initial|safe }}</div>
+      <input type="hidden" id="hidden_input" name="input_text">
+
+      <div class="form-row">
+        <label>Mode:</label>
+        <select name="mode" id="mode">
+          <option value="multiple_choice" {% if mode=='multiple_choice' %}selected{% endif %}>Multiple Choice</option>
+          <option value="missing_words_write" {% if mode=='missing_words_write' %}selected{% endif %}>Missing words (write version)</option>
+          <option value="missing_words_no_write" {% if mode=='missing_words_no_write' %}selected{% endif %}>Missing words (no-write version)</option>
+        </select>
+      </div>
+
+      <div class="form-row">
+        <label>Hide words (%):</label>
+        <select name="hide_percent">
+          {% for p in [10,20,30,40,50,60,70,80,90,100] %}
+          <option value="{{ p }}" {% if hide_percent==p %}selected{% endif %}>{{ p }}%</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <button type="submit" class="btn" style="margin-top:10px; background:linear-gradient(135deg, #00c9ff, #92fe9d); color:#333;">Create Quiz</button>
+    </form>
+
+    <div class="output-container" id="quizResult">
+      <h2>Quiz result:</h2>
+      {% for html_text in quiz_questions %}
+        <div>{{ html_text|safe }}</div>
+        <hr>
+      {% endfor %}
+    </div>
+
+    {% if quiz_questions %}
+      <button onclick="onSaveToLibrary()" class="btn save-btn">Save to Library</button>
+      <form method="post" action="{{ url_for('quizz.save_original') }}" id="saveForm" style="display:none;">
+        <input type="hidden" name="filename" id="save_filename">
+        <input type="hidden" name="original_html" id="saved_html">
+      </form>
+    {% endif %}
+
+    <!-- Сырой HTML -->
+    <form method="post" action="{{ url_for('quizz.save_original') }}">
+      <input type="hidden" name="original_html" value="{{ editor_initial|e }}">
+      <label>Filename:</label>
+      <input type="text" name="filename" value="quiz_saved.html">
+      <button type="submit" class="btn">Save to Library (original)</button>
+    </form>
+  </div>
+
+  <!-- ПРОГРЕСС-БАР + ФЕЙЕРВЕРК -->
+  <div id="progressContainer">
+    <div id="progressBar">
+      <div id="progressMan">🏃</div>
+    </div>
+  </div>
+  <div id="firework">
+    <div class="firework-text">🎉 CONGRATS! 🎉</div>
+  </div>
+
+  <!-- REVIEW MODAL -->
+  <div id="reviewModal" class="review-modal">
+    <div class="review-content" id="reviewContent"></div>
+    <button class="review-btn" onclick="getMoreReviews()">Ещё 3</button>
+    <button class="review-btn" onclick="closeReviewModal()">Закрыть</button>
+  </div>
+
+  <script>
+  // ================== Исходные механики multiple choice, fill, hidden + updateProgress
+  document.addEventListener("DOMContentLoaded",function(){
+    let activePopup=null;
+
+    function getParentSentence(el){
+      let p=el.closest("p, div");
+      if(!p) return document.body;
+      return p;
+    }
+
+    // MULTIPLE CHOICE
+    document.querySelectorAll(".mc-gap").forEach(gap=>{
+      gap.addEventListener("click",e=>{
+        e.stopPropagation();
+        if(activePopup){
+          activePopup.remove();
+          activePopup=null;
+        }
+        let corr=gap.getAttribute("data-correct")||"";
+        let w=gap.getAttribute("data-wrongs")||"";
+        let wrongs=w.split("|").filter(x=>x.trim());
+        let opts=[corr,...wrongs];
+        for(let i=opts.length-1;i>0;i--){
+          let j=Math.floor(Math.random()*(i+1));
+          [opts[i],opts[j]]=[opts[j],opts[i]];
+        }
+        let popup=document.createElement("div");
+        popup.classList.add("mc-popup");
+        opts.forEach(opt=>{
+          let b=document.createElement("button");
+          b.classList.add("mc-option-btn");
+          b.textContent=opt;
+          b.addEventListener("click",ev=>{
+            ev.stopPropagation();
+            if(opt.trim().toLowerCase()===corr.trim().toLowerCase()){
+              gap.textContent=corr;
+              gap.style.border="none";
+              gap.style.color="inherit";
+              popup.remove();
+              activePopup=null;
+              let line=getParentSentence(gap).textContent.trim();
+              onCorrectAnswer(line,corr);
+              updateProgress();
+            } else {
+              b.style.background="lightcoral";
+              onWrongAnswer();
+            }
+          });
+          popup.appendChild(b);
+        });
+        document.body.appendChild(popup);
+        let r=gap.getBoundingClientRect();
+        popup.style.left=r.left+"px";
+        popup.style.top=(r.bottom+window.scrollY)+"px";
+        popup.style.display="block";
+        activePopup=popup;
+      });
+    });
+    document.addEventListener("click",()=>{
+      if(activePopup){
+        activePopup.remove();
+        activePopup=null;
+      }
+    },true);
+
+    // fill-input
+    function normalize(str){
+      return str.toLowerCase().replace(/[.,!?;:"“”‘’'()]/g,"").replace(/\s+/g," ").trim();
+    }
+    document.querySelectorAll(".fill-input").forEach(inp=>{
+      inp.addEventListener("input",()=>{
+        let corr=inp.getAttribute("data-correct")||"";
+        let typed=normalize(inp.value||"");
+        if(typed===corr.toLowerCase() && typed!==""){
+          inp.classList.remove("incorrect");
+          inp.classList.add("correct");
+          inp.style.backgroundColor="lightgreen";
+          inp.readOnly=true;
+          let line=getParentSentence(inp).textContent.trim();
+          onCorrectAnswer(line,corr);
+          updateProgress();
+        } else {
+          inp.classList.remove("correct");
+          if(typed.length>0){
+            inp.classList.add("incorrect");
+            inp.style.backgroundColor="lightcoral";
+          } else {
+            inp.classList.remove("incorrect");
+            inp.style.backgroundColor="";
+          }
+        }
+      });
+    });
+
+    // hidden-word
+    document.querySelectorAll(".hidden-word").forEach(hw=>{
+      hw.addEventListener("click",()=>{
+        hw.classList.toggle("opened");
+        let orig=hw.getAttribute("data-original")||"";
+        if(hw.classList.contains("opened")){
+          hw.textContent=orig;
+          let line=getParentSentence(hw).textContent.trim();
+          onCorrectAnswer(line,orig);
+        } else {
+          hw.textContent="";
+          onWrongAnswer();
+        }
+        updateProgress();
+      });
+    });
+
+    updateProgress();
+  });
+
+  function updateProgress(){
+    let total=0, correct=0;
+    let mc=document.querySelectorAll(".mc-gap");
+    let fillInputs=document.querySelectorAll(".fill-input");
+    let hiddenWords=document.querySelectorAll(".hidden-word");
+
+    mc.forEach(g=>{
+      total++;
+      if(g.textContent.trim()!=="???"){
+        correct++;
+      }
+    });
+    fillInputs.forEach(inp=>{
+      total++;
+      if(inp.classList.contains("correct")){
+        correct++;
+      }
+    });
+    hiddenWords.forEach(hw=>{
+      total++;
+      if(hw.classList.contains("opened")){
+        correct++;
+      }
+    });
+
+    let pct=0;
+    if(total>0){
+      pct=Math.floor((correct/total)*100);
+    }
+    let pb=document.getElementById("progressBar");
+    let pm=document.getElementById("progressMan");
+    if(pb){
+      pb.style.width=pct+"%";
+      pm.style.left=pct+"%";
+    }
+    if(pct>=100){
+      showFirework();
+    }
+        updateSidebar(pct,correct,total);
+  }
+
+  // Submit/Save
+  function onFormSubmit(){
+    let html=document.getElementById("editor").innerHTML;
+    document.getElementById("hidden_input").value=html;
+  }
+  function onSaveToLibrary(){
+    let quizDiv=document.getElementById("quizResult");
+    if(!quizDiv){
+      alert("No quiz result to save!");
+      return;
+    }
+    let quizHTML=quizDiv.innerHTML;
+    let fn=prompt("Enter filename (e.g. quiz1.html) to save in library:");
+    if(!fn) return;
+    document.getElementById("save_filename").value=fn;
+    document.getElementById("saved_html").value=quizHTML;
+    document.getElementById("saveForm").submit();
+  }
+  function showFirework(){
+    let fw=document.getElementById("firework");
+    fw.style.display='block';
+    setTimeout(()=>{ fw.style.display='none'; },2500);
+  }
+  </script>
+</body>
+</html>
