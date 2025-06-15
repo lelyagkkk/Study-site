@@ -1,0 +1,266 @@
+/* 🌈 Общий стиль страницы */
+body {
+    font-family: 'Arial', sans-serif;
+    background: linear-gradient(to bottom, #a8edea, #fed6e3);
+    background-attachment: fixed;
+    text-align: center;
+    padding: 20px;
+    margin: 0;
+    animation: fadeIn 1s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* 📝 Контейнер для формы */
+form {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+    background: white;
+    padding: 25px;
+    border-radius: 12px;
+    box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.15);
+    max-width: 550px;
+    margin: auto;
+    animation: slideIn 0.8s ease-out;
+}
+
+@keyframes slideIn {
+    from { transform: translateY(-20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+/* 📌 Поля ввода и выпадающие списки */
+textarea, select, input[type="text"] {
+    width: 100%;
+    padding: 14px;
+    font-size: 16px;
+    border: 2px solid #ffb6c1;
+    border-radius: 8px;
+    outline: none;
+    transition: border-color 0.3s, transform 0.2s;
+}
+
+textarea:focus, select:focus, input[type="text"]:focus {
+    border-color: #ff69b4;
+    transform: scale(1.05);
+}
+
+/* 🎯 Кнопки */
+input[type="submit"], .quiz-button, .main-button {
+    background-color: #ff69b4;
+    color: white;
+    border: none;
+    padding: 14px 22px;
+    font-size: 18px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.3s, transform 0.2s;
+    text-decoration: none;
+}
+
+input[type="submit"]:hover, .quiz-button:hover, .main-button:hover {
+    background-color: #d14787;
+    transform: scale(1.1);
+}
+
+/* 📝 Вывод вопросов */
+.output-container {
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+    max-width: 800px;
+    margin: 20px auto;
+    animation: fadeIn 1s ease-in;
+}
+
+/* 🔹 Слова и пропуски */
+.word {
+    display: inline-block;
+    padding: 10px;
+    margin: 5px;
+    border: 2px solid #ffb6c1;
+    border-radius: 8px;
+    background: #ffeef2;
+    font-size: 18px;
+    transition: background 0.3s, transform 0.2s;
+}
+
+.word:hover {
+    background: #ffdde1;
+    transform: scale(1.1);
+}
+
+/* 📌 Варианты ответа в Multiple Choice */
+.choice {
+    display: inline-block;
+    padding: 12px 20px;
+    margin: 5px;
+    border: 2px solid #ff69b4;
+    border-radius: 8px;
+    background: white;
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background 0.3s, transform 0.2s;
+    box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.choice:hover {
+    background: #ffb6c1;
+    transform: scale(1.1);
+}
+
+.choice:active {
+    background: #ff69b4;
+    color: white;
+    transform: scale(1.05);
+}
+
+/* Обычный стиль инпутов */
+.fill-input {
+    width: 4ch;  /* Чуть шире, чтобы буквы точно влезли */
+    min-width: 4ch;
+    max-width: 4.5ch;
+    height: 35px;
+    text-align: center;
+    border: 2px solid lightpink;
+    font-size: 18px; /* Чуть больше для читаемости */
+    font-weight: normal;
+    box-sizing: border-box;
+    padding: 4px;
+    line-height: normal;
+}
+
+/* Увеличенная ширина ТОЛЬКО в режиме "Fill in the Blanks" */
+body.fill-mode .fill-input {
+    width: 4.5ch;  /* Делаем инпут шире */
+    min-width: 4.5ch;
+    max-width: 5ch;
+    font-size: 18px; /* Оптимальный размер */
+}
+
+/* Стили ТОЛЬКО для Fill in the Blanks в quizz.py */
+body.quiz-mode .fill-input {
+    width: auto; /* Инпуты теперь подстраиваются под слово */
+    min-width: 3ch; /* Минимальная ширина */
+    max-width: 12ch; /* Чтобы не были слишком широкими */
+    height: 35px;
+    text-align: center;
+    border: 2px solid lightpink;
+    font-size: 20px; /* Достаточно крупный, но не огромный */
+    font-weight: bold; /* Делаем текст жирным */
+    box-sizing: border-box;
+    padding: 4px;
+    line-height: normal;
+}
+
+
+.fill-input:focus {
+    transform: scale(1.1);  /* Light zoom on focus */
+    background-color: #f0f0f0;
+    color: black !important;
+}
+
+
+/* ✅ Верные ответы */
+.correct {
+    background-color: lightgreen !important;
+    color: black;
+    animation: pop 0.4s ease-in-out;
+}
+
+@keyframes pop {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.2); }
+    100% { transform: scale(1); }
+}
+
+/* ❌ Неверные ответы */
+.incorrect {
+    background-color: lightcoral !important;
+    animation: shake 0.4s ease-in-out;
+}
+
+@keyframes shake {
+    0% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    50% { transform: translateX(5px); }
+    75% { transform: translateX(-5px); }
+    100% { transform: translateX(0); }
+}
+
+/* 📌 Кнопка "Quiz Mode" */
+.quiz-button {
+    background-color: #ff9800;
+    padding: 12px 20px;
+}
+
+.quiz-button:hover {
+    background-color: #e68900;
+}
+
+.image-hide-button {
+    background-color: #6c757d; /* Серый фон, чтобы не привлекала слишком много внимания */
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    font-size: 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.3s, transform 0.2s;
+    text-decoration: none;
+    display: inline-block;
+}
+
+.image-hide-button:hover {
+    background-color: #5a6268;
+    transform: scale(1.1);
+}
+
+.coding-button {
+    background-color: #007BFF; /* Синий цвет для Coding */
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    font-size: 18px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.3s, transform 0.2s;
+    text-decoration: none;
+    display: inline-block;
+}
+
+.coding-button:hover {
+    background-color: #0056b3;
+    transform: scale(1.1);
+}
+
+.canvas-wrapper {
+    position: relative;
+    display: inline-block;
+    margin-top: 20px;
+}
+
+#canvas {
+    border: 2px solid black;
+    cursor: crosshair;
+    border-radius: 10px;
+    display: block;
+}
+
+.resizer {
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    background: #ff69b4;
+    right: 0; 
+    top: 0; /* Теперь квадратик в правом верхнем углу */
+    cursor: ne-resize;
+    border-radius: 4px;
+}
