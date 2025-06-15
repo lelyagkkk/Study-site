@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>My Personal Account</title>
+    <style>
+      body { 
+        margin: 0;
+        padding: 20px;
+        font-family: Arial, sans-serif;
+        min-height: 100vh;
+        background: linear-gradient(to bottom, #fbc2eb, #a6c1ee);
+      }
+
+      /* ===== Навбар сверху ===== */
+      .navbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        max-width: 1000px;
+        margin: 0 auto 20px;
+      }
+      .navbar-left, .navbar-right {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+      }
+      .btn {
+        display: inline-block;
+        padding: 10px 16px;
+        border-radius: 8px;
+        text-decoration: none;
+        color: #fff;
+        font-size: 16px;
+        font-weight: bold;
+        box-shadow: 0 3px 8px rgba(0,0,0,0.2);
+        transition: 0.3s;
+      }
+      .btn:hover {
+        transform: scale(1.05);
+        box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+      }
+      .btn-main {
+        background-color: #ff69b4; /* розовая */
+      }
+      .btn-logout {
+        background: linear-gradient(135deg, #fa709a, #f94144);
+        border: none;
+      }
+      .btn-login {
+        background: linear-gradient(135deg, #2196F3, #21cbf3);
+      }
+
+      .account-container {
+        background: white;
+        border-radius: 15px;
+        padding: 30px;
+        box-shadow: 0px 4px 10px rgba(0,0,0,0.1);
+        max-width: 600px;
+        margin: 20px auto;
+        text-align: center;
+      }
+      .account-container h2 {
+        margin-top: 0;
+      }
+
+      .big-btn {
+        display: inline-block;
+        width: 180px;
+        padding: 15px;
+        margin: 15px;
+        border-radius: 12px;
+        color: white;
+        text-decoration: none;
+        font-size: 18px;
+        transition: transform 0.3s;
+        font-weight: bold;
+        box-shadow: 0 3px 8px rgba(0,0,0,0.2);
+      }
+      .big-btn:hover {
+        transform: scale(1.05);
+        box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+      }
+      .lib-btn {
+        background: #ff69b4;
+      }
+      .cal-btn {
+        background: #2196F3;
+      }
+      .big-btn span.icon {
+        margin-right: 5px;
+      }
+
+      .user-info {
+        font-size: 16px;
+        margin-bottom: 10px;
+      }
+    </style>
+</head>
+<body>
+
+  <!-- Навбар -->
+  <div class="navbar">
+    <div class="navbar-left">
+      <!-- Кнопка Main (розовая) -->
+      <a href="{{ url_for('index') }}" class="btn btn-main">Main</a>
+    </div>
+
+    <div class="navbar-right">
+      {% if session.get('user_id') %}
+        <!-- Если залогинен => Log out -->
+        <form method="post" action="{{ url_for('auth_bp.logout') }}" style="margin:0; padding:0;">
+          <button class="btn btn-logout">Log out</button>
+        </form>
+      {% else %}
+        <!-- Иначе => Login / Register -->
+        <a href="{{ url_for('auth_bp.login') }}" class="btn btn-login">Login</a>
+        <a href="{{ url_for('auth_bp.register') }}" class="btn btn-login">Register</a>
+      {% endif %}
+    </div>
+  </div>
+
+  <h1>My Personal Account</h1>
+
+  {% if session.get('user_id') %}
+    <p class="user-info">Logged in as: <strong>{{ session['user_id'] }}</strong></p>
+  {% else %}
+    <p>You are not logged in.</p>
+  {% endif %}
+
+  <div class="account-container">
+      <h2>Welcome to Your Account!</h2>
+      
+      <!-- Кнопки My Library / My Calendar 
+           Если user не залогинен, при нажатии на них 
+           всё равно сработает проверка в library.py/mycalendar.py,
+           и перебросит на /auth/login -->
+      
+      <a href="{{ url_for('library_bp.browse_library') }}" class="big-btn lib-btn">
+        <span class="icon">📚</span> My Library
+      </a>
+      
+      <a href="{{ url_for('mycalendar_bp.index_calendar') }}" class="big-btn cal-btn">
+        <span class="icon">📅</span> My Calendar
+      </a>
+  </div>
+
+</body>
+</html>
