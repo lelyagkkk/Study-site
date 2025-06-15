@@ -1,236 +1,207 @@
 import re
 import random
-from flask import Blueprint, request, render_template_string
+import os
+from flask import Blueprint, request, render_template, redirect, url_for, session
+from markupsafe import escape
+from bs4 import BeautifulSoup
+
+import pandas as pd  # Новый импорт для работы с Excel (не забудьте установить pandas!)
 
 quizz_bp = Blueprint('quizz', __name__)
 
-QUIZZ_TEMPLATE = """ 
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Quizz</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head>
-<body class="quiz-mode">
+def get_user_library_root():
+    """Возвращает путь к папке библиотеки (user_id или _guest)."""
+    if 'user_id' not in session:
+        user = '_guest'
+    else:
+        user = session['user_id']
+    root = os.path.join('static', 'library', user)
+    os.makedirs(root, exist_ok=True)
+    return root
 
-    <a href="{{ url_for('index') }}" class="main-button">Main</a>
-    <a href="{{ url_for('pichide.pichide') }}" class="image-hide-button">Image Hide</a>
-    <a href="{{ url_for('coding.coding') }}" class="large-button coding-button">Coding</a>
+def get_plain_text(html):
+    """Если нужно извлекать обычный текст без HTML."""
+    soup = BeautifulSoup(html, "html.parser")
+    return soup.get_text(separator="\n")
 
-    <form method="post">
-        <textarea name="input_text" style="width:100%;height:120px;">{{ input_text }}</textarea><br>
-
-        <label for="mode">Select quiz mode:</label>
-        <select name="mode" id="mode">
-            <option value="multiple_choice" {% if mode=='multiple_choice' %}selected{% endif %}>Multiple Choice</option>
-            <option value="fill_blanks" {% if mode=='fill_blanks' %}selected{% endif %}>Fill in the Blanks</option>
-        </select><br>
-
-        <label for="missing_words">Number of missing words:</label>
-        <select name="missing_words" id="missing_words">
-            <option value="1" {% if missing_words=='1' %}selected{% endif %}>1</option>
-            <option value="2" {% if missing_words=='2' %}selected{% endif %}>2</option>
-            <option value="3" {% if missing_words=='3' %}selected{% endif %}>3</option>
-            <option value="4" {% if missing_words=='4' %}selected{% endif %}>4</option>
-            <option value="whole_sentence" {% if missing_words=='whole_sentence' %}selected{% endif %}>Whole sentence</option>
-            <option value="chosen_words" {% if missing_words=='chosen_words' %}selected{% endif %}>Chosen words</option>
-        </select><br>
-
-        <input type="text" name="chosen_words" id="chosen_words_input" placeholder="Enter words separated by commas"
-               style="display:none;">
-        <input type="submit" value="Create Quiz">
-    </form>
-
-    <h3>Quiz:</h3>
-    <div class="output-container">
-      {% for question, options_list in quiz_questions %}
-        <div class="word">
-          {% if mode=='multiple_choice' %}
-            <strong>{{ question }}</strong><br>
-            {% for opts, correct_word in options_list %}
-              {% for opt in opts %}
-                <button class="choice" data-correct="{{ correct_word }}">{{ opt }}</button>
-              {% endfor %}
-              <br>
-            {% endfor %}
-          {% else %}
-            <strong>{{ question|safe }}</strong>
-          {% endif %}
-        </div>
-      {% endfor %}
-    </div>
-
-<script>
-document.addEventListener("DOMContentLoaded",function(){
-
-   // Показать/спрятать поле chosen_words
-   document.getElementById("missing_words").addEventListener("change", function(){
-     let val=this.value;
-     if(val==="chosen_words"){
-       document.getElementById("chosen_words_input").style.display='inline-block';
-     } else {
-       document.getElementById("chosen_words_input").style.display='none';
-     }
-   });
-
-   // Multiple Choice
-   document.querySelectorAll(".choice").forEach(btn=>{
-     btn.addEventListener("click", function(){
-       let cor = btn.dataset.correct.trim().toLowerCase();
-       let txt = btn.textContent.trim().toLowerCase();
-       if(txt===cor){
-         btn.style.backgroundColor='lightgreen';
-       } else {
-         btn.style.backgroundColor='lightcoral';
-       }
-     });
-   });
-
-   // Fill in the Blanks
-   // Добавим «нормализацию» строк, чтобы не ломаться из-за "умных кавычек" и знаков.
-   function normalize(str){
-     return str
-       .toLowerCase()
-       // убираем кавычки, точки, запятые, дефисы и т.д. (расширьте при необходимости)
-       .replace(/[.,!?;:"“”‘’'()]/g, "")
-       .replace(/\s+/g," ")
-       .trim();
-   }
-
-   let fillInputs=document.querySelectorAll(".fill-input");
-   fillInputs.forEach((inp, idx)=>{
-     inp.addEventListener("input", function(){
-       let corr = normalize(inp.dataset.correct || "");
-       let typed = normalize(inp.value || "");
-       if(typed === corr && typed!==""){
-         // правильный ввод
-         inp.classList.remove("incorrect");
-         inp.classList.add("correct");
-         inp.style.backgroundColor='lightgreen';
-         // перейти к следующему
-         let nxt=fillInputs[idx+1];
-         if(nxt) nxt.focus();
-       } else {
-         // неверный ввод
-         inp.classList.remove("correct");
-         inp.classList.add("incorrect");
-         inp.style.backgroundColor='lightcoral';
-       }
-     });
-   });
-});
-</script>
-</body>
-</html>
-"""
-
-
-def generate_quiz(text, mode, missing_words_count, chosen_words=None):
+def quizz_process(html, mode, hide_percent, chosen_words=None):
     """
-    Разделяем text на предложения «по точкам/вопросительным/восклицательным знакам + пробел».
-    Затем внутри каждого предложения прячем слова в зависимости от режима.
-    Добавлена логика multiple_choice / fill_blanks.
+    Обрабатывает HTML, пряча некоторый процент слов 
+    (multiple_choice / missing_words_write / missing_words_no_write).
+    Если hide_percent равен "chosen", то скрываются только слова, указанные в chosen_words (через запятую).
     """
-    # Разделяем чуть умнее (по . ? !, используя lookbehind)
-    sentences = re.split(r'(?<=[.?!])\s+', text.strip())
-    all_words = list(set(text.split()))
+    soup = BeautifulSoup(html, "html.parser")
+    text_nodes = []
+    # Собираем все текстовые узлы
+    for node in soup.find_all(string=True):
+        raw = node
+        if raw.strip():
+            # Разбиваем строку на (\s+), (\w+) и "не-пробельные символы"
+            tokens = re.findall(r'\s+|[^\w\s]+|\w+', raw)
+            text_nodes.append((node, tokens))
 
-    # Если chosen_words
-    if missing_words_count == 'chosen_words':
-        if isinstance(chosen_words, str):
-            chosen_words = chosen_words.split(',')
-        chosen_words = [w.strip().lower() for w in chosen_words if w.strip() in all_words]
+    # Собираем все слова (только \w+)
+    all_words = []
+    for nodeIdx, (nd, toks) in enumerate(text_nodes):
+        for tokIdx, tok in enumerate(toks):
+            if re.match(r'^\w+$', tok):
+                all_words.append((nodeIdx, tokIdx, tok))
 
-    quiz_questions = []
-    for sent in sentences:
-        words = sent.split()
-        if len(words) <= 4:
-            continue
+    if hide_percent == "chosen":
+        chosen_set = set(word.strip().lower() for word in chosen_words.split(",") if word.strip()) if chosen_words else set()
+    else:
+        # Сколько слов прятать
+        n_hide = int(len(all_words) * (hide_percent / 100.0)) if all_words else 0
+        if n_hide > len(all_words):
+            n_hide = len(all_words)
+        indices = list(range(len(all_words)))
+        random.shuffle(indices)
+        hideSet = set(indices[:n_hide])
 
-        if missing_words_count == 'whole_sentence':
-            missing_idxs = list(range(len(words)))
-        elif missing_words_count == 'chosen_words':
-            missing_idxs = [i for i, w in enumerate(words) if w.lower() in chosen_words]
-        else:
-            try:
-                num = int(missing_words_count)
-            except:
-                num = 1
-            if num > len(words):
-                num = len(words)
-            missing_idxs = sorted(random.sample(range(len(words)), num))
+    # Уникальные слова (если надо для multiple choice)
+    unique_words = set(w for (_, _, w) in all_words)
 
-        if not missing_idxs:
-            continue
-
-        # Собираем "правильные" слова
-        corrects = [words[i] for i in missing_idxs]
-
-        if mode == 'multiple_choice':
-            # На каждое пропущенное слово - 2 неправильных
-            opts_list = []
-            for idx in missing_idxs:
-                correct_word = words[idx]
-                incands = [w for w in all_words if w != correct_word]
-                if incands:
-                    wrongs = random.sample(incands, min(2, len(incands)))
+    # Обходим все слова, вставляем замену
+    global_idx = 0
+    for nodeIdx, (nd, toks) in enumerate(text_nodes):
+        newToks = []
+        for tokIdx, tok in enumerate(toks):
+            if re.match(r'^\w+$', tok):
+                hide_this = False
+                if hide_percent == "chosen":
+                    if tok.lower() in chosen_set:
+                        hide_this = True
                 else:
-                    wrongs = []
-                opts = [correct_word] + wrongs
-                random.shuffle(opts)
-                opts_list.append((opts, correct_word))
+                    if global_idx in hideSet:
+                        hide_this = True
 
-                # Замена в тексте
-                words[idx] = "______"
+                if hide_this:
+                    # Прячем это слово в зависимости от mode
+                    if mode == "multiple_choice":
+                        correct = tok
+                        inc = [w for w in unique_words if w != correct]
+                        wrongs = []
+                        if len(inc) > 2:
+                            wrongs = random.sample(inc, 2)
+                        elif inc:
+                            wrongs = inc[:2]
+                        wr = "|".join(wrongs)
+                        replaced = (
+                            f'<span class="mc-gap" data-correct="{escape(correct)}" '
+                            f'data-wrongs="{escape(wr)}">???</span>'
+                        )
+                        newToks.append(replaced)
+                    elif mode == "missing_words_write":
+                        wlen = len(tok)
+                        replaced = (
+                            f'<input type="text" class="fill-input" data-correct="{escape(tok)}" '
+                            f'style="width:{max(wlen*1.3,5)}ch" maxlength="{wlen}">'
+                        )
+                        newToks.append(replaced)
+                    else:
+                        # missing_words_no_write
+                        replaced = (
+                            f'<span class="hidden-word" data-original="{escape(tok)}" '
+                            f'style="width:{max(len(tok)*1.3,4)}ch;"></span>'
+                        )
+                        newToks.append(replaced)
+                else:
+                    # Слово не скрывается
+                    newToks.append(escape(tok))
+                global_idx += 1
+            else:
+                # пробелы/пунктуация
+                newToks.append(escape(tok))
+        replaced = "".join(newToks)
+        frag = BeautifulSoup(replaced, "html.parser")
+        nd.replace_with(frag)
 
-            question_str = " ".join(words).strip()
-            quiz_questions.append((question_str, opts_list))
-
-        else:  # fill_blanks
-            new_words = words[:]
-            for idx in missing_idxs:
-                cor = words[idx]
-                wlen = len(cor)
-                inp_html = (f'<input type="text" class="fill-input" data-correct="{cor}" '
-                            f'style="width:{max(wlen*2.5,5)}ch" maxlength="{wlen}">')
-                new_words[idx] = inp_html
-
-            question_str = " ".join(new_words).strip()
-            quiz_questions.append((question_str, []))
-
-    return quiz_questions
-
+    return str(soup)
 
 @quizz_bp.route('/quizz', methods=['GET', 'POST'])
 def quizz():
-    input_text = ""
-    quiz_questions = []
+    """
+    Страница квиза:
+      - Пользователь вводит HTML в #editor или импортирует Excel-файл,
+      - Выбирает mode и hide_percent,
+      - Нажимает Create Quiz => обрабатываем (quizz_process) или импортируем квиз из Excel,
+      - Показываем результат.
+    """
     mode = "multiple_choice"
-    missing_words = "1"
-    chosen_list = []
+    hide_percent = 30
+    editor_initial = ""
+    quiz_questions = []
+    chosen_words = ""
 
-    # Считывание GET‐параметров (если нужно)
-    if request.method == 'GET':
-        if 'input_text' in request.args:
-            input_text = request.args['input_text']
-        if 'mode' in request.args:
-            mode = request.args['mode']
-
-    # Обработка формы (POST)
     if request.method == 'POST':
-        input_text = request.form.get('input_text', '')
-        mode = request.form.get('mode', 'multiple_choice')
-        missing_words = request.form.get('missing_words', '1')
-        if missing_words == 'chosen_words':
-            chosen_str = request.form.get('chosen_words', '')
-            chosen_list = [w for w in chosen_str.split(',') if w.strip()]
+        # Проверяем: загружен ли Excel?
+        if 'excel_file' in request.files and request.files['excel_file'].filename:
+            file = request.files['excel_file']
+            from werkzeug.utils import secure_filename
+            filename = secure_filename(file.filename)
+            excel_path = os.path.join('static', 'uploads', filename)
+            os.makedirs(os.path.join('static', 'uploads'), exist_ok=True)
+            file.save(excel_path)
 
-        quiz_questions = generate_quiz(input_text, mode, missing_words, chosen_list)
+            df = pd.read_excel(excel_path)
 
-    return render_template_string(
-        QUIZZ_TEMPLATE,
-        input_text=input_text,
-        mode=mode,
-        missing_words=missing_words,
-        quiz_questions=quiz_questions
-    )
+            for idx, row in df.iterrows():
+                question = row['Question']
+                correct = row['Correct']
+                wrong1 = row['Option1']
+                wrong2 = row['Option2']
+                wrong3 = row['Option3']
+                options = [correct, wrong1, wrong2, wrong3]
+                random.shuffle(options)
+                question_html = f'<div class="quiz-question"><p>{question}</p>'
+                for opt in options:
+                    question_html += (
+                        f'<button class="mc-option-btn" data-correct="{escape(correct)}">{opt}</button>'
+                    )
+                question_html += '</div>'
+                quiz_questions.append(question_html)
+
+            os.remove(excel_path)
+
+        else:
+            # Обработка HTML из редактора
+            editor_initial = request.form.get("input_text", "")
+            mode = request.form.get("mode", "multiple_choice")
+            hide_percent = request.form.get("hide_percent", "30")
+            if hide_percent == "chosen":
+                chosen_words = request.form.get("chosen_words", "")
+            else:
+                try:
+                    hide_percent = int(hide_percent)
+                except:
+                    hide_percent = 30
+            out = quizz_process(editor_initial, mode, hide_percent, chosen_words)
+            quiz_questions = [out]
+
+    return render_template("quizz.html",
+                           mode=mode,
+                           hide_percent=hide_percent,
+                           editor_initial=editor_initial,
+                           quiz_questions=quiz_questions,
+                           chosen_words=chosen_words)
+
+@quizz_bp.route('/save_original', methods=['POST'])
+def save_original():
+    """
+    Сохраняем оригинальный HTML (не модифицированный) в библиотеку.
+    """
+    filename = request.form.get("filename", "quiz_saved.html").strip()
+    original_html = request.form.get("original_html", "<p>Empty</p>")
+
+    if not filename.lower().endswith(".html"):
+        filename += ".html"
+
+    user = session.get('user_id', '_guest')
+    root = os.path.join('static', 'library', user)
+    os.makedirs(root, exist_ok=True)
+
+    path = os.path.join(root, filename)
+    with open(path, 'w', encoding='utf-8') as f:
+        f.write(original_html)
+
+    return redirect(url_for("library_bp.browse_library"))
