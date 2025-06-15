@@ -1,193 +1,156 @@
 import random
 import re
-from flask import Flask, render_template_string, request
-from quizz import quizz_bp  # Импортируем Blueprint
-from pichide import pichide_bp  # Импортируем Blueprint
+from flask import Flask, request, session, render_template
+from flask_login import LoginManager
+from bs4 import BeautifulSoup
+
+# Подключаем Blueprint’ы
+from quizz import quizz_bp
+from pichide import pichide_bp
 from coding import coding_bp
 from library import library_bp
+from mycalendar import mycalendar_bp
+from auth import auth_bp
+from account import account_bp
+from mc_quiz_word import mc_quiz_word_bp
+from matching import matching_bp
 
 app = Flask(__name__)
+app.secret_key = "MY_SUPER_SECRET_KEY"
 
-app.register_blueprint(pichide_bp)  # Регистрируем Blueprint
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'auth_bp.login'
+
+# Регистрируем Blueprint’ы
+app.register_blueprint(pichide_bp)
 app.register_blueprint(quizz_bp)
 app.register_blueprint(coding_bp)
 app.register_blueprint(library_bp)
+app.register_blueprint(auth_bp)
+app.register_blueprint(mycalendar_bp)
+app.register_blueprint(account_bp)
+app.register_blueprint(mc_quiz_word_bp)
+app.register_blueprint(matching_bp)
 
-HTML_TEMPLATE = """
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Random Letter Removal</title>
-    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css') }}">
+##############################################################################
+# Функции, которые обрабатывают HTML и прячут буквы
+##############################################################################
 
-    <script>
-document.addEventListener("DOMContentLoaded", function() {
-    function toggleHiddenPercentage() {
-        document.getElementById("hidden_percentage_container").style.display = 
-            document.querySelector('input[name="mode"]:checked').value === "fill" ? "inline-block" : "none";
-    }
+def split_into_tokens_preserve_spaces(text):
+    """
+    Делим текст на "токены": слова (\\w+), пробелы (\\s+), и любую другую 
+    не-пробельную пунктуацию, чтобы сохранить форматирование.
+    """
+    return re.findall(r'\s+|[^\w\s]+|\w+', text)
 
-    function updateBodyClass() {
-        document.body.classList.toggle("fill-mode", document.querySelector('input[name="mode"]:checked').value === "fill");
-    }
+def hide_letters_in_word(word, prob=0.2, fill_mode=False):
+    """
+    Прячет случайные буквы в слове:
+      - если fill_mode=True -> <input ...>
+      - иначе -> "_"
+    """
+    if not word:
+        return word
+    arr = list(word)
+    n_hide = max(1, int(len(word)*prob)) if len(word) > 1 else 1
+    indices = random.sample(range(len(word)), min(n_hide, len(word)))
 
-    document.querySelectorAll('input[name="mode"]').forEach(mode => {
-        mode.addEventListener("change", function() {
-            toggleHiddenPercentage();
-            updateBodyClass();
-        });
-    });
-
-    toggleHiddenPercentage();  
-    updateBodyClass();  // Запуск при загрузке страницы
-
-    let inputs = document.querySelectorAll(".fill-input");
-    inputs.forEach((input, index) => {
-        input.addEventListener("input", function() {
-            let correctValue = this.dataset.correct.trim().toLowerCase();
-            let enteredValue = this.value.trim().toLowerCase();
-
-            if (enteredValue === correctValue) {
-                this.classList.add("correct");
-                this.style.color = 'black'; 
-                this.style.backgroundColor = 'lightgreen';
-                this.classList.remove("incorrect");
-
-                this.value = correctValue;
-                this.setAttribute("readonly", "true");  
-
-                let nextInput = inputs[index + 1];
-                if (nextInput) {
-                    nextInput.focus();
-                }
-            } else {
-                this.classList.add("incorrect");
-                this.style.backgroundColor = 'lightcoral';
-                this.classList.remove("correct");
-            }
-        });
-
-        input.addEventListener("keydown", function(event) {
-            if (event.key.length === 1 && this.value.length >= 1) {
-                event.preventDefault();
-                this.value = event.key;  
-                this.setSelectionRange(1, 1);
-            }
-        });
-
-        input.addEventListener("focus", function() {
-            if (!this.classList.contains("correct")) {
-                this.value = "";
-            }
-        });
-    });
-});
-
-
-    </script>
-</head>
-<body>
-    <h2>Your text</h2>
-    <form method="post">
-        <textarea name="input_text">{{ input_text }}</textarea><br>
-
-        <label><input type="radio" name="mode" value="remove" {% if mode == 'remove' %}checked{% endif %}> Remove Letters</label>
-        <label><input type="radio" name="mode" value="fill" {% if mode == 'fill' %}checked{% endif %}> Fill in the Blanks</label><br>
-
-        <div id="hidden_percentage_container">
-            <label for="hidden_percentage">Hidden letters (%):</label>
-            <select name="hidden_percentage" id="hidden_percentage">
-                {% for percent in [10, 20, 30, 40, 50, 60, 70, 80, 90, 100] %}
-                    <option value="{{ percent }}" {% if hidden_percentage == percent %}selected{% endif %}>{{ percent }}%</option>
-                {% endfor %}
-            </select>
-        </div><br>
-
-        <input type="submit" value="Process">
-    </form>
-
-    {% if output_words %}
-        <h3>Output:</h3>
-        <div class="output-container">
-        {% for word, original in output_words %}
-            <div class="word">
-                {% if mode == 'fill' %}
-                    {% for char in word %}
-                        {% if char == '_' %}
-                            <input type="text" class="fill-input" maxlength="1" data-correct="{{ original[loop.index0] }}">
-                        {% else %}
-                            {{ char }}
-                        {% endif %}
-                    {% endfor %}
-                {% else %}
-                    {{ word.replace('_', '_') }}
-                {% endif %}
-            </div>
-        {% endfor %}
-        </div>
-    {% endif %}
-    <br><br>
-    <a href="{{ url_for('quizz.quizz') }}" class="quiz-button">Quiz Mode</a>
-    <a href="{{ url_for('coding.coding') }}" class="coding-button">Coding</a>
-    <a href="/pichide" class="image-hide-button">Image Hide</a>
-    <a href="/library/" class="library-button">Library</a>
-
-</html>
-"""
-
-def remove_random_letters(text, removal_prob=0.2):
-    words = re.findall(r'\b\w+\b|\S', text)  # Разбиваем текст на слова и знаки препинания
-    output_words = []
-
-    for word in words:
-        if re.match(r'\w+', word):  # Если это слово, а не пунктуация
-            num_to_hide = max(1, int(len(word) * removal_prob))  # Скрываем минимум 1 букву
-            indices = random.sample(range(len(word)), num_to_hide) if len(word) > 1 else [0]  
-
-            modified_word = list(word)
-            for i in indices:
-                modified_word[i] = "_"
-
-            output_words.append(("".join(modified_word), word))  # Сохраняем скрытый вариант + оригинал
+    for i in indices:
+        if fill_mode:
+            correct_letter = arr[i]
+            # === Дополняем: оборачиваем input + вопросик ===
+            arr[i] = (
+                f'<span class="hint-wrapper" style="position:relative; display:inline-block;">'
+                f'  <input type="text" class="fill-input" maxlength="1" '
+                f'         data-correct="{correct_letter}">'
+                # Небольшой вопросик, при наведении (или нажатии) показывает букву
+                f'  <span class="hint-icon" '
+                f'        style="position:absolute; top:-1.3em; left:0; '
+                f'               cursor:pointer; font-size:12px; color:#999;" '
+                f'        onmouseover="this.textContent=\'{correct_letter}\'" '
+                f'        onmouseout="this.textContent=\'?\'" '
+                f'        onclick="this.textContent=\'{correct_letter}\'" '
+                f'>?</span>'
+                f'</span>'
+            )
         else:
-            output_words.append((word, word))  
+            arr[i] = "_"
+    return "".join(arr)
 
-    return output_words
+def transform_text_for_mode(text, removal_prob=0.2, fill_mode=False):
+    """
+    Разбивает на токены (слова, пробелы, пунктуация).
+    Если слово => прячем часть букв,
+    иначе оставляем как есть.
+    """
+    tokens = split_into_tokens_preserve_spaces(text)
+    out = []
+    for t in tokens:
+        if t.isspace():
+            out.append(t)
+        else:
+            if re.match(r'^\w+$', t):
+                replaced = hide_letters_in_word(t, removal_prob, fill_mode)
+            else:
+                replaced = t
+            out.append(f'<span class="word">{replaced}</span>')
+    return "".join(out)
 
+def process_rich_html(html, removal_prob=0.2, fill_mode=False):
+    """
+    Парсим HTML через BeautifulSoup, обрабатываем только текстовые узлы,
+    превращая буквы в "_" или <input>.
+    """
+    soup = BeautifulSoup(html, "html.parser")
+
+    for element in soup.find_all(string=True):
+        orig_text = str(element)
+        new_html = transform_text_for_mode(orig_text, removal_prob, fill_mode)
+        new_frag = BeautifulSoup(new_html, "html.parser")
+        element.replace_with(new_frag)
+    return str(soup)
+
+
+##############################################################################
+# Flask-Login (заглушка)
+##############################################################################
+
+@login_manager.user_loader
+def load_user(user_id):
+    return None
+
+
+##############################################################################
+# Главная страница ("/")
+##############################################################################
 
 @app.route('/', methods=['GET','POST'])
 def index():
-    """Main page: Remove Letters / Fill in the Blanks."""
-    input_text = ""
-    output_words = []
     mode = "remove"
     hidden_percentage = 20
-
-    # Если GET-параметры (mode, input_text), подставим их
-    if request.method == 'GET':
-        # Если ?input_text=..., ?mode=fill или remove
-        if 'input_text' in request.args:
-            input_text = request.args.get('input_text','')
-        if 'mode' in request.args:
-            mode = request.args.get('mode','remove')
+    editor_initial = ""
+    output_html = ""
 
     if request.method == 'POST':
-        input_text = request.form.get('input_text','')
-        mode = request.form.get('mode','remove')
-        hidden_percentage = int(request.form.get('hidden_percentage','20'))
-        if mode=='fill':
-            output_words = remove_random_letters(input_text, hidden_percentage/100)
-        else:
-            output_words = remove_random_letters(input_text)
+        mode = request.form.get("mode", "remove")
+        hidden_percentage = int(request.form.get("hidden_percentage", "20"))
+        input_text = request.form.get("input_text", "")
 
-    return render_template_string(HTML_TEMPLATE,
-        input_text=input_text,
-        output_words=output_words,
+        fill_mode = (mode == "fill")
+        prob = hidden_percentage / 100.0 if fill_mode else 0.2
+
+        output_html = process_rich_html(input_text, removal_prob=prob, fill_mode=fill_mode)
+        editor_initial = input_text
+
+    return render_template(
+        "import_random.html",
         mode=mode,
-        hidden_percentage=hidden_percentage
+        hidden_percentage=hidden_percentage,
+        editor_initial=editor_initial,
+        output_html=output_html
     )
 
-if __name__=='__main__':
-    app.run(host="0.0.0.0", port=80,debug=True)
+
+if __name__ == '__main__':
+    app.run(host="0.0.0.0", debug=True, port=5000)
