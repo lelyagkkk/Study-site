@@ -33,23 +33,10 @@ app.register_blueprint(account_bp)
 app.register_blueprint(mc_quiz_word_bp)
 app.register_blueprint(matching_bp)
 
-##############################################################################
-# Функции, которые обрабатывают HTML и прячут буквы
-##############################################################################
-
 def split_into_tokens_preserve_spaces(text):
-    """
-    Делим текст на "токены": слова (\\w+), пробелы (\\s+), и любую другую 
-    не-пробельную пунктуацию, чтобы сохранить форматирование.
-    """
     return re.findall(r'\s+|[^\w\s]+|\w+', text)
 
 def hide_letters_in_word(word, prob=0.2, fill_mode=False):
-    """
-    Прячет случайные буквы в слове:
-      - если fill_mode=True -> <input ...>
-      - иначе -> "_"
-    """
     if not word:
         return word
     arr = list(word)
@@ -79,11 +66,6 @@ def hide_letters_in_word(word, prob=0.2, fill_mode=False):
     return "".join(arr)
 
 def transform_text_for_mode(text, removal_prob=0.2, fill_mode=False):
-    """
-    Разбивает на токены (слова, пробелы, пунктуация).
-    Если слово => прячем часть букв,
-    иначе оставляем как есть.
-    """
     tokens = split_into_tokens_preserve_spaces(text)
     out = []
     for t in tokens:
@@ -98,10 +80,6 @@ def transform_text_for_mode(text, removal_prob=0.2, fill_mode=False):
     return "".join(out)
 
 def process_rich_html(html, removal_prob=0.2, fill_mode=False):
-    """
-    Парсим HTML через BeautifulSoup, обрабатываем только текстовые узлы,
-    превращая буквы в "_" или <input>.
-    """
     soup = BeautifulSoup(html, "html.parser")
 
     for element in soup.find_all(string=True):
@@ -111,19 +89,9 @@ def process_rich_html(html, removal_prob=0.2, fill_mode=False):
         element.replace_with(new_frag)
     return str(soup)
 
-
-##############################################################################
-# Flask-Login (заглушка)
-##############################################################################
-
 @login_manager.user_loader
 def load_user(user_id):
     return None
-
-
-##############################################################################
-# Главная страница ("/")
-##############################################################################
 
 @app.route('/', methods=['GET','POST'])
 def index():
@@ -151,6 +119,6 @@ def index():
         output_html=output_html
     )
 
-
 if __name__ == '__main__':
     app.run(host="0.0.0.0", debug=True, port=5000)
+
