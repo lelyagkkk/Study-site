@@ -18,10 +18,6 @@ except ImportError:
 
 library_bp = Blueprint('library_bp', __name__, url_prefix='/library')
 
-################################################################################
-# Вспомогательные функции
-################################################################################
-
 def get_user_library_root():
     """Возвращает путь к папке пользователя (или _guest)."""
     if 'user_id' not in session:
@@ -85,10 +81,6 @@ def read_text_file(filepath):
             return f.read()
     except:
         return "Unable to read file as text."
-
-################################################################################
-# Основные маршруты
-################################################################################
 
 @library_bp.route('/all_folders_json')
 def all_folders_json():
